@@ -38,6 +38,9 @@ class TelegramRealtimeMessaging {
                 name: payload.name || payload.username
             };
 
+            // Update user profile in UI
+            this.updateUserProfile();
+
             // Initialize Socket.IO with Telegram-style configuration
             this.socket = io('/', {
                 auth: { token },
@@ -310,7 +313,7 @@ class TelegramRealtimeMessaging {
 
             this.currentChat = conversation;
             
-            // Update UI
+            // Update chat header
             this.updateChatHeader(conversation);
             this.renderConversations(); // Re-render to show active state
             
@@ -437,7 +440,92 @@ class TelegramRealtimeMessaging {
         document.addEventListener('DOMContentLoaded', () => {
             this.setupMessageInput();
             this.setupSearch();
+            this.setupLogout();
+            this.updateUserProfile();
         });
+    }
+
+    // Update User Profile Information
+    updateUserProfile() {
+        if (this.currentUser) {
+            const userNameElement = document.getElementById('user-name');
+            const userUsernameElement = document.getElementById('user-username');
+            const userAvatarElement = document.getElementById('user-avatar');
+            
+            if (userNameElement) {
+                userNameElement.textContent = this.currentUser.name || this.currentUser.username || 'User';
+            }
+            
+            if (userUsernameElement) {
+                userUsernameElement.textContent = `@${this.currentUser.username || 'user'}`;
+            }
+            
+            if (userAvatarElement) {
+                const firstLetter = (this.currentUser.name || this.currentUser.username || 'U').charAt(0).toUpperCase();
+                userAvatarElement.src = `https://placehold.co/48x48/4F46E5/FFFFFF?text=${firstLetter}`;
+                userAvatarElement.alt = `${this.currentUser.name || this.currentUser.username}'s Avatar`;
+            }
+        }
+    }
+
+    // Setup Logout Functionality
+    setupLogout() {
+        const logoutButton = document.getElementById('logout-button');
+        if (logoutButton) {
+            logoutButton.addEventListener('click', () => {
+                this.handleLogout();
+            });
+        }
+    }
+
+    // Handle User Logout
+    handleLogout() {
+        try {
+            // Disconnect socket
+            if (this.socket) {
+                this.socket.disconnect();
+            }
+            
+            // Clear local storage
+            localStorage.removeItem('token');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
+            
+            // Clear session storage
+            sessionStorage.clear();
+            
+            // Redirect to login
+            window.location.href = '/login.html';
+            
+            console.log('👋 User logged out successfully');
+            
+        } catch (error) {
+            console.error('❌ Logout error:', error);
+            // Force redirect even if there's an error
+            window.location.href = '/login.html';
+        }
+    }
+
+    // Update Chat Header
+    updateChatHeader(conversation) {
+        const chatNameElement = document.getElementById('chat-name');
+        const chatStatusElement = document.getElementById('chat-status');
+        const chatAvatarElement = document.getElementById('chat-avatar');
+        
+        if (chatNameElement) {
+            chatNameElement.textContent = conversation.name || 'Unknown User';
+        }
+        
+        if (chatStatusElement) {
+            chatStatusElement.textContent = conversation.isOnline ? 'Đang hoạt động' : 'Không hoạt động';
+            chatStatusElement.className = `text-xs ${conversation.isOnline ? 'text-green-400' : 'text-gray-400'}`;
+        }
+        
+        if (chatAvatarElement) {
+            const firstLetter = (conversation.name || 'U').charAt(0).toUpperCase();
+            chatAvatarElement.src = `https://placehold.co/40x40/8A2BE2/FFFFFF?text=${firstLetter}`;
+            chatAvatarElement.alt = `${conversation.name}'s Avatar`;
+        }
     }
 
     setupMessageInput() {
@@ -523,32 +611,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // === PAGE NAVIGATION ===
 function initializePageNavigation() {
-    const mainNav = document.getElementById('main-nav');
-    const navLinks = mainNav?.querySelectorAll('.nav-link');
-    const pages = document.querySelectorAll('.page-content');
-
-    navLinks?.forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            const targetPageId = link.dataset.page;
-
-            pages.forEach(page => {
-                page.classList.add('hidden');
-            });
-
-            const targetPage = document.getElementById(`page-${targetPageId}`);
-            if (targetPage) {
-                targetPage.classList.remove('hidden');
-            }
-
-            navLinks.forEach(navLink => {
-                navLink.classList.remove('text-white', 'bg-gray-500/20');
-                navLink.classList.add('hover:bg-gray-800/50');
-            });
-            link.classList.add('text-white', 'bg-gray-500/20');
-            link.classList.remove('hover:bg-gray-800/50');
-        });
-    });
+    // Since we're using direct HTML links now, we don't need complex page navigation
+    // The navigation will work through standard HTML href attributes
+    console.log('📄 Page navigation initialized with direct links');
 }
 
 // === 3D COSMIC BACKGROUND ===
