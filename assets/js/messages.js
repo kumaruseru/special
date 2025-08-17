@@ -38,6 +38,9 @@ class TelegramRealtimeMessaging {
                 name: payload.name || payload.username
             };
 
+            // Load full user profile from API
+            this.loadUserProfile();
+
             // Update user profile in UI
             this.updateUserProfile();
 
@@ -391,6 +394,65 @@ class TelegramRealtimeMessaging {
         this.renderConversations();
     }
 
+    // Load full user profile from API
+    async loadUserProfile() {
+        try {
+            const response = await fetch('/api/profile/me', {
+                headers: {
+                    'Authorization': `Bearer ${this.auth.token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const userProfile = await response.json();
+                console.log('👤 Loaded user profile:', userProfile);
+                
+                // Update current user with full profile data
+                this.currentUser = {
+                    ...this.currentUser,
+                    name: userProfile.name || userProfile.fullName || this.currentUser.name,
+                    username: userProfile.username || this.currentUser.username,
+                    email: userProfile.email,
+                    avatar: userProfile.avatar,
+                    bio: userProfile.bio
+                };
+
+                // Save to localStorage for offline access
+                localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+                
+                // Update UI with new profile data
+                this.updateUserProfile();
+                
+                console.log('✅ User profile updated:', this.currentUser.name);
+            } else {
+                console.warn('⚠️ Failed to load user profile, using token data');
+            }
+        } catch (error) {
+            console.error('❌ Error loading user profile:', error);
+            // Try to load from localStorage as fallback
+            this.loadUserFromStorage();
+        }
+    }
+
+    // Load user from localStorage as fallback
+    loadUserFromStorage() {
+        try {
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                const userData = JSON.parse(savedUser);
+                this.currentUser = {
+                    ...this.currentUser,
+                    ...userData
+                };
+                this.updateUserProfile();
+                console.log('📁 Loaded user from storage:', this.currentUser.name);
+            }
+        } catch (error) {
+            console.error('❌ Error loading user from storage:', error);
+        }
+    }
+
     // Get active conversations for current user
     async getActiveConversations() {
         try {
@@ -456,18 +518,38 @@ class TelegramRealtimeMessaging {
             const unreadCount = conv.unreadCount || 0;
             const lastMessage = conv.lastMessage;
             
+            // Determine conversation display name
+            let displayName = 'Unknown User';
+            let avatarLetter = 'U';
+            
+            if (conv.name) {
+                displayName = conv.name;
+                avatarLetter = displayName.charAt(0).toUpperCase();
+            } else if (conv.otherUser) {
+                // If it's a direct conversation with another user
+                displayName = conv.otherUser.name || conv.otherUser.username || 'Unknown User';
+                avatarLetter = displayName.charAt(0).toUpperCase();
+            } else if (conv.participants && conv.participants.length > 0) {
+                // Find the other participant (not current user)
+                const otherParticipant = conv.participants.find(p => p.id !== this.currentUser?.id);
+                if (otherParticipant) {
+                    displayName = otherParticipant.name || otherParticipant.username || 'Unknown User';
+                    avatarLetter = displayName.charAt(0).toUpperCase();
+                }
+            }
+            
             return `
                 <div class="conversation-item ${isActive ? 'active' : ''}" onclick="telegramMessaging.selectChat('${conv.id}')">
                     <div class="flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-700/30 ${isActive ? 'bg-blue-600/20 border-l-2 border-blue-400' : ''}">
                         <div class="relative">
                             <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-sm font-semibold text-white">
-                                ${conv.name ? conv.name.charAt(0).toUpperCase() : 'U'}
+                                ${avatarLetter}
                             </div>
                             <div class="absolute -bottom-1 -right-1 w-3 h-3 ${conv.isOnline ? 'bg-green-500' : 'bg-gray-500'} rounded-full border-2 border-gray-800"></div>
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center justify-between">
-                                <h4 class="text-white font-medium truncate">${conv.name || 'Unknown User'}</h4>
+                                <h4 class="text-white font-medium truncate">${displayName}</h4>
                                 <span class="text-xs text-gray-400">${this.formatTime(lastMessage?.timestamp)}</span>
                             </div>
                             <div class="flex items-center justify-between">
@@ -628,19 +710,34 @@ class TelegramRealtimeMessaging {
             const userUsernameElement = document.getElementById('user-username');
             const userAvatarElement = document.getElementById('user-avatar');
             
+            // Determine best display name
+            const displayName = this.currentUser.name || 
+                               this.currentUser.fullName || 
+                               this.currentUser.username || 
+                               'Unknown User';
+            
+            const username = this.currentUser.username || 'user';
+            
             if (userNameElement) {
-                userNameElement.textContent = this.currentUser.name || this.currentUser.username || 'User';
+                userNameElement.textContent = displayName;
+                console.log('👤 Updated user name display:', displayName);
             }
             
             if (userUsernameElement) {
-                userUsernameElement.textContent = `@${this.currentUser.username || 'user'}`;
+                userUsernameElement.textContent = `@${username}`;
             }
             
             if (userAvatarElement) {
-                const firstLetter = (this.currentUser.name || this.currentUser.username || 'U').charAt(0).toUpperCase();
-                userAvatarElement.src = `https://placehold.co/48x48/4F46E5/FFFFFF?text=${firstLetter}`;
-                userAvatarElement.alt = `${this.currentUser.name || this.currentUser.username}'s Avatar`;
+                const firstLetter = displayName.charAt(0).toUpperCase();
+                if (this.currentUser.avatar) {
+                    userAvatarElement.src = this.currentUser.avatar;
+                } else {
+                    userAvatarElement.src = `https://placehold.co/48x48/4F46E5/FFFFFF?text=${firstLetter}`;
+                }
+                userAvatarElement.alt = `${displayName}'s Avatar`;
             }
+        } else {
+            console.warn('⚠️ No current user data available for profile update');
         }
     }
 
