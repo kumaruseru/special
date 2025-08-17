@@ -496,19 +496,13 @@ app.post('/api/login', async (req, res) => {
         
         let isValidPassword = false;
         
-        // Check if password looks like SHA256 hash (64 characters, hex)
-        if (password.length === 64 && /^[a-f0-9]+$/i.test(password)) {
-            // Frontend sent hashed password - compare directly
-            console.log('🔍 Comparing hashed passwords...');
-            isValidPassword = (user.password === password);
-        } else {
-            // Traditional bcrypt comparison (fallback for plain passwords)
-            console.log('🔍 Using bcrypt comparison...');
-            isValidPassword = await bcrypt.compare(password, user.password);
-        }
+        // Use bcrypt to compare plaintext password with stored hash
+        console.log('🔍 Using bcrypt password comparison...');
+        isValidPassword = await bcrypt.compare(password, user.password);
         
         if (!isValidPassword) {
             console.log('❌ Invalid password for:', email);
+            console.log('🔍 Password length:', password.length, 'Expected bcrypt hash');
             return res.status(401).json({
                 success: false,
                 message: 'Invalid credentials'

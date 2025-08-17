@@ -170,34 +170,16 @@ function initLoginForm() {
             loginButton.textContent = 'Đang đăng nhập...';
             loginButton.disabled = true;
             
-            // First, get user salt from server
-            fetch('/api/get-salt', {
+            // Simple login without hashing (server will handle password verification)
+            fetch('/api/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email: email })
-            })
-            .then(response => response.json())
-            .then(saltData => {
-                if (!saltData.success) {
-                    throw new Error(saltData.message);
-                }
-                
-                // Hash password with salt
-                const hashedPassword = CryptoJS.SHA256(password + saltData.salt).toString();
-                
-                // Now call login API
-                return fetch('/api/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        email: email,
-                        password: hashedPassword
-                    })
-                });
+                body: JSON.stringify({
+                    email: email,
+                    password: password // Send plaintext password
+                })
             })
             .then(response => response.json())
             .then(data => {
