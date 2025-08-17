@@ -102,4 +102,77 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- INITIALIZATION ---
     init3DScene();
+    
+    // --- RESET PASSWORD LOGIC ---
+    const newPasswordInput = document.getElementById('new-password');
+    const confirmPasswordInput = document.getElementById('confirm-password');
+    const resetButton = document.getElementById('reset-password-btn');
+    
+    if (resetButton && newPasswordInput && confirmPasswordInput) {
+        resetButton.addEventListener('click', async (e) => {
+            e.preventDefault();
+            
+            const newPassword = newPasswordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+            
+            // Validation
+            if (!newPassword || !confirmPassword) {
+                alert('Vui lòng nhập đầy đủ thông tin!');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                alert('Mật khẩu nhập lại không khớp!');
+                return;
+            }
+            
+            if (newPassword.length < 6) {
+                alert('Mật khẩu phải có ít nhất 6 ký tự!');
+                return;
+            }
+            
+            // Get reset token from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            
+            if (!token) {
+                alert('❌ Token không hợp lệ. Vui lòng yêu cầu reset mật khẩu mới!');
+                return;
+            }
+            
+            // Disable button during request
+            resetButton.disabled = true;
+            resetButton.textContent = 'Đang đặt lại...';
+            
+            try {
+                const response = await fetch('/api/reset-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        token: token,
+                        newPassword: newPassword 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                    window.location.href = 'login.html';
+                } else {
+                    alert('❌ ' + data.message);
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('❌ Có lỗi xảy ra. Vui lòng thử lại!');
+            } finally {
+                // Re-enable button
+                resetButton.disabled = false;
+                resetButton.textContent = 'Đặt Lại Mật Khẩu';
+            }
+        });
+    }
 });

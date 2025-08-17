@@ -102,4 +102,58 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- INITIALIZATION ---
     init3DScene();
+    
+    // --- FORGOT PASSWORD LOGIC ---
+    const emailInput = document.getElementById('email-input');
+    const sendButton = document.getElementById('send-reset-link');
+    
+    if (sendButton && emailInput) {
+        sendButton.addEventListener('click', async (e) => {
+            e.preventDefault();
+            
+            const email = emailInput.value.trim();
+            
+            if (!email) {
+                alert('Vui lòng nhập email!');
+                return;
+            }
+            
+            if (!email.includes('@')) {
+                alert('Email không hợp lệ!');
+                return;
+            }
+            
+            // Disable button during request
+            sendButton.disabled = true;
+            sendButton.textContent = 'Đang gửi...';
+            
+            try {
+                const response = await fetch('/api/forgot-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email: email })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                    // Optionally redirect or show success message
+                    window.location.href = 'reset-password.html';
+                } else {
+                    alert('❌ ' + data.message);
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('❌ Có lỗi xảy ra. Vui lòng thử lại!');
+            } finally {
+                // Re-enable button
+                sendButton.disabled = false;
+                sendButton.textContent = 'Gửi Liên Kết';
+            }
+        });
+    }
 });

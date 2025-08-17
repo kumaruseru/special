@@ -548,6 +548,112 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// Forgot password endpoint
+app.post('/api/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+        
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email là bắt buộc'
+            });
+        }
+        
+        console.log('🔐 Password reset request for:', email);
+        
+        // Find user by email
+        const user = await User.findOne({ email: email.toLowerCase() });
+        
+        if (!user) {
+            // Don't reveal if user exists or not for security
+            return res.json({
+                success: true,
+                message: 'Nếu email tồn tại, chúng tôi đã gửi liên kết reset password'
+            });
+        }
+        
+        // Generate reset token
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+        
+        // Save token to user
+        await User.findByIdAndUpdate(user._id, {
+            passwordResetToken: resetToken,
+            passwordResetExpires: resetTokenExpiry
+        });
+        
+        console.log('✅ Reset token generated for:', email);
+        
+        // For now, just return success (in production, you'd send email here)
+        res.json({
+            success: true,
+            message: 'Liên kết reset password đã được tạo. Bạn có thể tiếp tục reset mật khẩu.',
+            resetToken: resetToken // Remove this in production, only for testing
+        });
+        
+    } catch (error) {
+        console.error('❌ Forgot password error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi server'
+        });
+    }
+});
+
+// Reset password endpoint
+app.post('/api/reset-password', async (req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+        
+        if (!token || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Token và mật khẩu mới là bắt buộc'
+            });
+        }
+        
+        console.log('🔐 Password reset attempt with token:', token.substring(0, 8) + '...');
+        
+        // Find user with valid reset token
+        const user = await User.findOne({
+            passwordResetToken: token,
+            passwordResetExpires: { $gt: new Date() }
+        });
+        
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: 'Token không hợp lệ hoặc đã hết hạn'
+            });
+        }
+        
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, 12);
+        
+        // Update user password and clear reset token
+        await User.findByIdAndUpdate(user._id, {
+            password: hashedPassword,
+            passwordResetToken: undefined,
+            passwordResetExpires: undefined
+        });
+        
+        console.log('✅ Password reset successful for:', user.email);
+        
+        res.json({
+            success: true,
+            message: 'Mật khẩu đã được đặt lại thành công!'
+        });
+        
+    } catch (error) {
+        console.error('❌ Reset password error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi server'
+        });
+    }
+});
+
 app.post('/api/register', async (req, res) => {
     console.log('Registration API called');
     console.log('Request body:', req.body);
@@ -655,6 +761,8 @@ app.get('/api/debug', (req, res) => {
             'GET /api/users',
             'POST /api/get-salt',
             'POST /api/login',
+            'POST /api/forgot-password',
+            'POST /api/reset-password',
             'GET /api/test-restore',
             'POST /api/restore-name',
             'POST /api/fix-users',

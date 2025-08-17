@@ -646,6 +646,7 @@ app.get('/api/debug', (req, res) => {
         success: true,
         message: 'API is working',
         timestamp: new Date().toISOString(),
+        version: '2.0', // Updated version to confirm deployment
         endpoints: [
             'GET /api/debug',
             'GET /api/debug-users',
