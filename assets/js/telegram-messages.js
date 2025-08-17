@@ -1456,7 +1456,17 @@ window.renderConversations = function(conversations) {
         let avatar = 'https://placehold.co/48x48/4F46E5/FFFFFF?text=U';
         
         if (otherUser) {
+            console.log('🔍 Debug otherUser name data:', {
+                'otherUser.name': otherUser.name,
+                'otherUser.fullName': otherUser.fullName,
+                'otherUser.username': otherUser.username,
+                'otherUser full object': otherUser
+            });
+            
             displayName = otherUser.name || otherUser.fullName || otherUser.username || 'Người dùng';
+            
+            console.log('📝 Final displayName chosen:', displayName);
+            
             if (otherUser.avatar) {
                 avatar = otherUser.avatar;
             } else {
