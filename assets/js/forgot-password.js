@@ -139,8 +139,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Redirect to check email page
-                    window.location.href = 'check-email.html';
+                    // Check if there's a fallback reset link
+                    if (data.resetLink) {
+                        // Redirect to check-email with fallback link
+                        const encodedLink = encodeURIComponent(data.resetLink);
+                        window.location.href = `check-email.html?fallback=${encodedLink}`;
+                    } else {
+                        // Normal email sent successfully
+                        window.location.href = 'check-email.html';
+                    }
                 } else {
                     alert('❌ ' + data.message);
                 }

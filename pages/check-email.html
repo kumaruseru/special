@@ -38,15 +38,15 @@
 
                 <!-- For testing purposes - only show if email fails -->
                 <div id="debug-section" class="bg-yellow-900/30 border border-yellow-500/30 rounded-lg p-4 space-y-3 hidden">
-                    <p class="text-yellow-300 text-sm font-bold">🧪 CHẾ ĐỘ TEST:</p>
-                    <p class="text-yellow-200 text-xs">Email service có vấn đề. Sử dụng link backup:</p>
-                    <button id="get-reset-link" class="w-full p-2 bg-yellow-600 text-black rounded-lg text-sm font-bold hover:bg-yellow-500 transition">
-                        Lấy Link Reset (Backup)
-                    </button>
+                    <p class="text-yellow-300 text-sm font-bold">🧪 EMAIL SERVICE UNAVAILABLE:</p>
+                    <p class="text-yellow-200 text-xs">Sử dụng link backup để reset password:</p>
                     <div id="reset-link-display" class="hidden">
-                        <p class="text-yellow-200 text-xs">Reset link:</p>
-                        <a id="reset-link" href="#" target="_blank" class="text-yellow-300 text-xs break-all underline"></a>
+                        <p class="text-yellow-200 text-xs">Direct reset link:</p>
+                        <a id="reset-link" href="#" class="text-yellow-300 text-xs break-all underline bg-yellow-900/50 p-2 rounded block">Reset Link</a>
                     </div>
+                    <button id="get-reset-link" class="w-full p-2 bg-yellow-600 text-black rounded-lg text-sm font-bold hover:bg-yellow-500 transition">
+                        Get Reset Link for Email
+                    </button>
                 </div>
 
                 <div class="space-y-3">

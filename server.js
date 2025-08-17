@@ -588,6 +588,7 @@ app.post('/api/forgot-password', async (req, res) => {
         
         // Send password reset email
         try {
+            console.log('📧 Attempting to send password reset email...');
             const emailResult = await sendPasswordResetEmail(user.email, resetToken, user.fullName);
             
             if (emailResult.success) {
@@ -600,22 +601,27 @@ app.post('/api/forgot-password', async (req, res) => {
             } else {
                 console.error('❌ Failed to send password reset email:', emailResult.error);
                 
+                // Provide fallback reset link
+                const resetLink = `${req.protocol}://${req.get('host')}/pages/reset-password.html?token=${resetToken}`;
+                console.log('🔗 Providing fallback reset link');
+                
                 res.json({
-                    success: true, // Still return success to not reveal if user exists
-                    message: 'Nếu email tồn tại, chúng tôi đã gửi liên kết reset password'
+                    success: true,
+                    message: 'Email service temporarily unavailable. Please try again later.',
+                    // Include link for manual access
+                    resetLink: resetLink
                 });
             }
         } catch (emailError) {
-            console.error('❌ Error sending reset email:', emailError);
+            console.error('❌ Error sending reset email:', emailError.message);
             
-            // For testing, still provide the reset link
+            // Always provide fallback for testing
             const resetLink = `${req.protocol}://${req.get('host')}/pages/reset-password.html?token=${resetToken}`;
             console.log('🔗 Fallback reset link:', resetLink);
             
             res.json({
                 success: true,
                 message: 'Email service temporarily unavailable. Please try again later.',
-                // Include link for testing when email fails
                 resetLink: resetLink
             });
         }
@@ -687,19 +693,38 @@ app.get('/api/test-email', async (req, res) => {
     try {
         console.log('🧪 Testing email connection...');
         
+        // Check if email config exists
+        console.log('📧 Email config check:');
+        console.log('- EMAIL_USER:', process.env.EMAIL_USER ? '✅ Set' : '❌ Missing');
+        console.log('- EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? '✅ Set' : '❌ Missing');
+        console.log('- SMTP_HOST:', process.env.SMTP_HOST || 'Using default');
+        console.log('- SMTP_PORT:', process.env.SMTP_PORT || 'Using default');
+        
         const result = await testEmailConnection();
         
         if (result.success) {
             res.json({
                 success: true,
                 message: 'Email connection successful! ✅',
-                details: result.message
+                details: result.message,
+                config: {
+                    emailUser: process.env.EMAIL_USER ? 'Set' : 'Missing',
+                    emailPassword: process.env.EMAIL_PASSWORD ? 'Set' : 'Missing',
+                    smtpHost: process.env.SMTP_HOST || 'smtp.cown.name.vn',
+                    smtpPort: process.env.SMTP_PORT || '587'
+                }
             });
         } else {
             res.status(500).json({
                 success: false,
                 message: 'Email connection failed ❌',
-                error: result.error
+                error: result.error,
+                config: {
+                    emailUser: process.env.EMAIL_USER ? 'Set' : 'Missing',
+                    emailPassword: process.env.EMAIL_PASSWORD ? 'Set' : 'Missing',
+                    smtpHost: process.env.SMTP_HOST || 'smtp.cown.name.vn',
+                    smtpPort: process.env.SMTP_PORT || '587'
+                }
             });
         }
         
