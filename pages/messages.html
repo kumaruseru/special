@@ -499,6 +499,10 @@
         console.log('E2E Encryption utilities loaded');
     </script>
     
+    <!-- Modern User and Message Managers -->
+    <script src="../assets/js/user-manager.js"></script>
+    <script src="../assets/js/message-manager.js"></script>
+    
     <!-- Custom Script -->
         <!-- Custom JavaScript -->
     <!-- Audio Generator -->
@@ -506,15 +510,29 @@
     <!-- Telegram-style messaging system -->
     <script src="../assets/js/telegram-messages.js"></script>
     <script>
-        // Ensure user info is loaded after DOM is ready
-        document.addEventListener('DOMContentLoaded', function() {
-            // Wait a bit then force load user info
+        // Ensure managers are loaded and user info is updated
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🚀 DOM loaded, initializing modern messaging system...');
+            
+            // Wait for managers to initialize
+            if (window.userManager) {
+                console.log('👤 UserManager available, forcing refresh...');
+                try {
+                    await window.userManager.forceRefresh();
+                    console.log('✅ User data refreshed');
+                } catch (error) {
+                    console.warn('⚠️ User refresh failed:', error);
+                }
+            }
+            
+            // Legacy fallback
             setTimeout(() => {
-                // Load real user info if available
                 if (typeof loadUserInfo === 'function') {
                     loadUserInfo();
                 }
             }, 100);
+            
+            console.log('✅ Modern messaging system initialized');
         });
     </script>
 </body>

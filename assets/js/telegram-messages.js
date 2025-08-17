@@ -5,7 +5,7 @@ class TelegramMessaging {
         
         // Core Telegram-like properties
         this.socket = null;
-        this.currentUser = this.loadUserProfile();
+        this.currentUser = null; // Will be loaded from UserManager
         this.currentChat = null;
         this.messages = new Map(); // Message storage like Telegram
         this.chats = new Map(); // Chat storage
@@ -13,6 +13,34 @@ class TelegramMessaging {
         this.typingUsers = new Set();
         this.isOnline = false;
         this.isAuthenticated = false; // Socket.IO authentication status
+        
+        // Initialize with modern managers
+        this.initWithManagers();
+    }
+    
+    // Initialize with modern user and message managers
+    async initWithManagers() {
+        console.log('🔄 Setting up with modern managers...');
+        
+        // Setup user manager integration
+        if (window.userManager) {
+            console.log('👤 UserManager detected, integrating...');
+            
+            // Subscribe to user changes
+            window.userManager.subscribe((userData) => {
+                if (userData) {
+                    this.currentUser = userData;
+                    console.log('👤 User updated from UserManager:', userData);
+                    this.updateUserElements();
+                }
+            });
+            
+            // Force refresh to get latest user data
+            await window.userManager.forceRefresh();
+        } else {
+            console.warn('⚠️ UserManager not available, using fallback');
+            this.currentUser = this.loadUserProfile();
+        }
         
         // Initialize subsystems
         this.initSocket();
@@ -1315,11 +1343,10 @@ function updateChatHeader(userName, userAvatar) {
     }
 }
 
-// Load conversations function
+// Load conversations function with modern MessageManager
 window.loadRealConversations = async function() {
     try {
         console.log('📋 Loading Telegram conversations...');
-        const token = localStorage.getItem('token') || '';
         
         // Show loading state
         const conversationsList = document.getElementById('conversations-list');
@@ -1331,43 +1358,72 @@ window.loadRealConversations = async function() {
             `;
         }
         
-        const response = await fetch('/api/conversations', {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        console.log('🔍 API Response status:', response.status);
-
-        if (response.ok) {
-            const data = await response.json();
-            console.log('🔍 API Response full data:', data);
-            console.log('🔍 API Response conversations array:', data.conversations);
-            
-            if (data.conversations && data.conversations.length > 0) {
-                console.log('🔍 First conversation raw structure:', JSON.stringify(data.conversations[0], null, 2));
-            }
-            
-            if (data.success && data.conversations) {
-                console.log(`✅ Loaded ${data.conversations.length} Telegram conversations`);
-                console.log('📋 First conversation details:', data.conversations[0]);
-                window.renderConversations(data.conversations);
-            } else {
-                console.warn('⚠️ No conversations in response or success=false');
-                showEmptyConversations();
+        let conversations = [];
+        
+        // Try to use MessageManager first
+        if (window.messageManager) {
+            console.log('� Using MessageManager for conversations...');
+            try {
+                conversations = await window.messageManager.fetchConversations();
+                console.log('✅ MessageManager loaded conversations:', conversations.length);
+            } catch (error) {
+                console.warn('⚠️ MessageManager failed, using fallback:', error.message);
+                conversations = await loadConversationsFallback();
             }
         } else {
-            const errorText = await response.text();
-            console.error('❌ API response not ok:', response.status, response.statusText);
-            console.error('❌ Error response body:', errorText);
+            console.warn('⚠️ MessageManager not available, using fallback');
+            conversations = await loadConversationsFallback();
+        }
+        
+        if (conversations && conversations.length > 0) {
+            console.log(`✅ Loaded ${conversations.length} Telegram conversations`);
+            console.log('📋 First conversation details:', conversations[0]);
+            window.renderConversations(conversations);
+        } else {
+            console.warn('⚠️ No conversations loaded');
             showEmptyConversations();
         }
+        
     } catch (error) {
         console.error('❌ Load Telegram conversations failed:', error);
         console.error('❌ Error details:', error.message, error.stack);
         showEmptyConversations();
     }
 };
+
+// Fallback conversation loading
+async function loadConversationsFallback() {
+    const token = window.userManager?.getAuthToken() || localStorage.getItem('token') || '';
+    
+    const response = await fetch('/api/conversations', {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    });
+
+    console.log('🔍 API Response status:', response.status);
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API response not ok:', response.status, response.statusText);
+        console.error('❌ Error response body:', errorText);
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log('🔍 API Response full data:', data);
+    console.log('🔍 API Response conversations array:', data.conversations);
+    
+    if (data.conversations && data.conversations.length > 0) {
+        console.log('🔍 First conversation raw structure:', JSON.stringify(data.conversations[0], null, 2));
+    }
+    
+    if (data.success && data.conversations) {
+        return data.conversations;
+    } else {
+        throw new Error('No conversations in response or success=false');
+    }
+}
 
 // Show empty state
 function showEmptyConversations() {

@@ -341,7 +341,11 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         console.log('Skipping auth check for:', currentPath);
         // Still load user info if available for guest mode
-        loadUserInfo();
+        if (window.userManager) {
+            window.userManager.forceRefresh().catch(console.warn);
+        } else {
+            loadUserInfo();
+        }
     }
     
     // Add logout event listener
