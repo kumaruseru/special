@@ -36,6 +36,7 @@ const securityHeaders = () => {
                 defaultSrc: ["'self'"],
                 styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.tailwindcss.com"],
                 scriptSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://cdnjs.cloudflare.com"],
+                scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers
                 fontSrc: ["'self'", "https://fonts.gstatic.com"],
                 imgSrc: ["'self'", "data:", "https:"],
                 connectSrc: ["'self'", "ws:", "wss:"],

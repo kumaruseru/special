@@ -368,6 +368,79 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
+// Posts API endpoint
+app.get('/api/posts', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        // For now, return mock data - you can replace this with actual database queries
+        const mockPosts = [
+            {
+                id: '1',
+                content: 'Welcome to the Cosmic Social Network! 🌟',
+                author: {
+                    name: 'Space Explorer',
+                    email: 'explorer@cosmos.space',
+                    avatar: 'S'
+                },
+                timestamp: new Date().toISOString(),
+                likes: 42,
+                comments: 7
+            },
+            {
+                id: '2',
+                content: 'Just discovered a new galaxy! The universe is truly amazing. ✨🌌',
+                author: {
+                    name: 'Cosmic Researcher',
+                    email: 'researcher@cosmos.space',
+                    avatar: 'C'
+                },
+                timestamp: new Date(Date.now() - 3600000).toISOString(),
+                likes: 128,
+                comments: 23
+            },
+            {
+                id: '3',
+                content: 'Who else loves stargazing? Tonight the constellation is perfect! 🌟🔭',
+                author: {
+                    name: 'Star Watcher',
+                    email: 'watcher@cosmos.space',
+                    avatar: 'S'
+                },
+                timestamp: new Date(Date.now() - 7200000).toISOString(),
+                likes: 89,
+                comments: 15
+            }
+        ];
+
+        // Simulate pagination
+        const startIndex = skip;
+        const endIndex = skip + limit;
+        const paginatedPosts = mockPosts.slice(startIndex, endIndex);
+
+        res.json({
+            success: true,
+            posts: paginatedPosts,
+            pagination: {
+                currentPage: page,
+                totalPages: Math.ceil(mockPosts.length / limit),
+                totalPosts: mockPosts.length,
+                hasNextPage: endIndex < mockPosts.length,
+                hasPrevPage: page > 1
+            }
+        });
+
+    } catch (error) {
+        logger.error('Posts API error', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to load posts'
+        });
+    }
+});
+
 // Health check endpoint for Render
 app.get('/health', (req, res) => {
     res.status(200).json({
