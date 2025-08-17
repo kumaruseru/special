@@ -139,9 +139,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert('✅ ' + data.message);
-                    // Optionally redirect or show success message
-                    window.location.href = 'reset-password.html';
+                    // Redirect to check email page
+                    window.location.href = 'check-email.html';
                 } else {
                     alert('❌ ' + data.message);
                 }

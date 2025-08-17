@@ -585,11 +585,16 @@ app.post('/api/forgot-password', async (req, res) => {
         
         console.log('✅ Reset token generated for:', email);
         
+        // Create reset link (in production, this would be sent via email)
+        const resetLink = `${req.protocol}://${req.get('host')}/pages/reset-password.html?token=${resetToken}`;
+        console.log('🔗 Reset link:', resetLink);
+        
         // For now, just return success (in production, you'd send email here)
         res.json({
             success: true,
-            message: 'Liên kết reset password đã được tạo. Bạn có thể tiếp tục reset mật khẩu.',
-            resetToken: resetToken // Remove this in production, only for testing
+            message: 'Liên kết khôi phục mật khẩu đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.',
+            // For testing purposes, include the link (remove in production)
+            resetLink: resetLink
         });
         
     } catch (error) {
@@ -650,6 +655,42 @@ app.post('/api/reset-password', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Lỗi server'
+        });
+    }
+});
+
+// Debug endpoint to get reset link (for testing)
+app.get('/api/debug-reset-link/:email', async (req, res) => {
+    try {
+        const { email } = req.params;
+        
+        const user = await User.findOne({ 
+            email: email.toLowerCase(),
+            passwordResetToken: { $exists: true },
+            passwordResetExpires: { $gt: new Date() }
+        });
+        
+        if (!user) {
+            return res.json({
+                success: false,
+                message: 'No valid reset token found for this email'
+            });
+        }
+        
+        const resetLink = `${req.protocol}://${req.get('host')}/pages/reset-password.html?token=${user.passwordResetToken}`;
+        
+        res.json({
+            success: true,
+            email: user.email,
+            resetLink: resetLink,
+            expiresAt: user.passwordResetExpires
+        });
+        
+    } catch (error) {
+        console.error('❌ Debug reset link error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error'
         });
     }
 });
@@ -758,6 +799,7 @@ app.get('/api/debug', (req, res) => {
             'GET /api/debug-users',
             'GET /api/debug-production',
             'GET /api/debug-raw',
+            'GET /api/debug-reset-link/:email',
             'GET /api/users',
             'POST /api/get-salt',
             'POST /api/login',

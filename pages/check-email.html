@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kiểm Tra Email - Cosmic Edition</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="../assets/css/forgot-password.css">
+</head>
+<body>
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="relative w-full h-screen flex items-center justify-center p-4">
+        <div id="form-wrapper" class="form-wrapper w-full max-w-md p-6 sm:p-8 space-y-6 rounded-2xl shadow-2xl">
+            <div class="text-center space-y-6">
+                <div class="text-6xl">📧</div>
+                <div class="space-y-2">
+                    <h1 class="text-3xl font-bold text-white">Email Đã Được Gửi!</h1>
+                    <p class="text-gray-300">Kiểm tra hộp thư để lấy liên kết khôi phục</p>
+                </div>
+                
+                <div class="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 space-y-3">
+                    <p class="text-gray-300 text-sm">
+                        📬 Chúng tôi đã gửi liên kết khôi phục mật khẩu đến email của bạn.
+                    </p>
+                    <p class="text-gray-300 text-sm">
+                        🔍 Vui lòng kiểm tra cả hộp thư spam nếu không thấy email.
+                    </p>
+                    <p class="text-gray-300 text-sm">
+                        ⏰ Liên kết có hiệu lực trong 1 giờ.
+                    </p>
+                </div>
+
+                <!-- For testing purposes -->
+                <div id="debug-section" class="bg-yellow-900/30 border border-yellow-500/30 rounded-lg p-4 space-y-3">
+                    <p class="text-yellow-300 text-sm font-bold">🧪 CHẾ ĐỘ TEST:</p>
+                    <p class="text-yellow-200 text-xs">Trong môi trường thực tế, bạn sẽ nhận email. Hiện tại để test:</p>
+                    <button id="get-reset-link" class="w-full p-2 bg-yellow-600 text-black rounded-lg text-sm font-bold hover:bg-yellow-500 transition">
+                        Lấy Link Reset (Test)
+                    </button>
+                    <div id="reset-link-display" class="hidden">
+                        <p class="text-yellow-200 text-xs">Reset link:</p>
+                        <a id="reset-link" href="#" target="_blank" class="text-yellow-300 text-xs break-all underline"></a>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <button onclick="window.location.href='forgot-password.html'" class="w-full p-3 bg-gray-600 text-white rounded-lg font-bold hover:bg-gray-500 transition">
+                        Gửi Lại Email
+                    </button>
+                    <a href="login.html" class="block text-center text-gray-300 text-sm hover:text-white transition">
+                        Quay lại Đăng nhập
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="../assets/js/forgot-password.js"></script>
+    <script>
+        // Test functionality
+        document.getElementById('get-reset-link').addEventListener('click', async () => {
+            const email = prompt('Nhập email để lấy reset link:');
+            if (!email) return;
+            
+            try {
+                const response = await fetch(`/api/debug-reset-link/${email}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('reset-link').href = data.resetLink;
+                    document.getElementById('reset-link').textContent = data.resetLink;
+                    document.getElementById('reset-link-display').classList.remove('hidden');
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            } catch (error) {
+                alert('❌ Lỗi: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>
