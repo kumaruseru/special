@@ -419,6 +419,60 @@ app.post('/api/debug-login', async (req, res) => {
     }
 });
 
+// Force password reset endpoint (development only)
+app.post('/api/force-reset-password', async (req, res) => {
+    try {
+        const { email, newPassword } = req.body;
+        
+        if (!email || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and newPassword are required'
+            });
+        }
+        
+        console.log('🔧 Force password reset for:', email);
+        
+        // Find user
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+        
+        // Hash new password
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+        
+        // Update password
+        await User.updateOne(
+            { email },
+            { password: hashedPassword }
+        );
+        
+        console.log('✅ Password reset successful for:', email);
+        
+        res.json({
+            success: true,
+            message: 'Password reset successful',
+            debug: {
+                email: email,
+                newPasswordLength: newPassword.length,
+                hashedPasswordLength: hashedPassword.length
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Force password reset error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+});
+
 // Get salt endpoint for secure password hashing
 app.post('/api/get-salt', async (req, res) => {
     try {
