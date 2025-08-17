@@ -5,45 +5,49 @@ services:
     runtime: node
     plan: free
     buildCommand: npm install
-    startCommand: npm run production
+    startCommand: npm start
     healthCheckPath: /health
+    host: 0.0.0.0
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 10000
-      - key: JWT_SECRET
         generateValue: true
-      - key: CORS_ORIGIN
-        fromService:
-          type: web
-          name: cosmic-social-network
-          property: host
-      # Database URLs will be configured separately
+      - key: JWT_SECRET
+        value: COSMIC_STELLAR_QUANTUM_NEXUS_GALACTIC_FUSION_HYPERDRIVE_MATRIX_VOID_ETERNAL_COSMIC_DIMENSION_INFINITY_STELLAR_QUANTUM_NEXUS_GALACTIC_FUSION_HYPERDRIVE_MATRIX_VOID_2024
       - key: MONGODB_URI
-        value: # Will be added manually from MongoDB Atlas
+        value: mongodb+srv://kumaruseru:huong1505@cluster0.r2vau.mongodb.net/cosmic-social?retryWrites=true&w=majority
+      - key: EMAIL_USER
+        value: noreply@cown.name.vn
+      - key: EMAIL_PASSWORD
+        value: Huong1505@
+      - key: SMTP_HOST
+        value: cown.name.vn
+      - key: SMTP_PORT
+        value: 465
+      - key: SMTP_SECURE
+        value: true
       - key: REDIS_URL
-        value: # Will be added manually from Redis service
-      - key: POSTGRES_URL
-        value: # Will be added manually from PostgreSQL service
+        value: rediss://red-cu6p0kbqf0us739m59v0:cxGH5HSN8aDNhb4TXxCW3H0sFhvSfrM5@oregon-redis.render.com:6379
+      - key: DATABASE_URL
+        value: postgresql://cosmic_social_user:YZaBJMbDjfJlAJYx3b8t6gkdDFSyj1V4@dpg-cu6p0ftqf0us739m5vug-a.oregon-postgres.render.com:5432/cosmic_social
       - key: NEO4J_URI
-        value: # Will be added manually from Neo4j Aura
-      - key: NEO4J_USER
+        value: neo4j+s://fd75e41b.databases.neo4j.io
+      - key: NEO4J_USERNAME
         value: neo4j
       - key: NEO4J_PASSWORD
-        value: # Will be added manually
-
-  # PostgreSQL Database
-  - type: pserv
-    name: cosmic-postgres
-    runtime: postgres
-    plan: free
-    databaseName: cosmic_social_network
-    user: cosmic_admin
-    ipAllowList: []
-
-  # Redis Service
-  - type: redis
-    name: cosmic-redis
-    plan: free
-    ipAllowList: []
+        value: YZaBJMbDjfJlAJYx3b8t6gkdDFSyj1V4
+      - key: ENCRYPTION_KEY
+        value: cosmic-encryption-key-2024
+      - key: API_RATE_LIMIT
+        value: 100
+      - key: ENABLE_SOCKET_IO
+        value: true
+      - key: ENABLE_EMAIL
+        value: true
+      - key: ENABLE_REDIS
+        value: true
+      - key: ENABLE_POSTGRESQL
+        value: true
+      - key: ENABLE_NEO4J
+        value: true

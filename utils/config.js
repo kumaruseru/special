@@ -10,9 +10,14 @@ const requiredEnvVars = [
 const optionalEnvVars = [
     'PORT',
     'CORS_ORIGIN',
+    'SMTP_USER',
+    'SMTP_PASS',
     'EMAIL_USER',
     'EMAIL_PASSWORD',
-    'ENCRYPTION_KEY'
+    'ENCRYPTION_KEY',
+    'POSTGRES_URI',
+    'REDIS_URI',
+    'NEO4J_URI'
 ];
 
 function validateEnvironment() {
@@ -77,6 +82,11 @@ function getConfig() {
         
         // Database
         mongoUri: process.env.MONGODB_URI,
+        postgresUri: process.env.POSTGRES_URI,
+        redisUri: process.env.REDIS_URI,
+        neo4jUri: process.env.NEO4J_URI,
+        neo4jUsername: process.env.NEO4J_USERNAME,
+        neo4jPassword: process.env.NEO4J_PASSWORD,
         
         // Security
         jwtSecret: process.env.JWT_SECRET,
@@ -87,9 +97,12 @@ function getConfig() {
         
         // Email
         email: {
-            user: process.env.EMAIL_USER,
-            password: process.env.EMAIL_PASSWORD,
-            service: process.env.EMAIL_SERVICE || 'gmail'
+            user: process.env.SMTP_USER || process.env.EMAIL_USER,
+            password: process.env.SMTP_PASS || process.env.EMAIL_PASSWORD,
+            host: process.env.SMTP_HOST,
+            port: parseInt(process.env.SMTP_PORT) || 587,
+            secure: process.env.SMTP_SECURE === 'true',
+            from: process.env.EMAIL_FROM || process.env.SMTP_USER || process.env.EMAIL_USER
         },
         
         // Features
