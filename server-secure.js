@@ -561,59 +561,96 @@ app.get('/api/debug-production', async (req, res) => {
     }
 });
 
-// Fix users with missing fullName
-app.post('/api/fix-users', async (req, res) => {
+// Restore user real name
+app.post('/api/restore-name', async (req, res) => {
     try {
-        console.log('🔧 Starting user data fix...');
+        const { userId, fullName, firstName, lastName } = req.body;
         
-        // Find users without fullName or with generic names
-        const usersToFix = await User.find({
-            $or: [
-                { fullName: { $exists: false } },
-                { fullName: null },
-                { fullName: '' }
-            ]
-        });
-
-        console.log(`📊 Found ${usersToFix.length} users to fix`);
-
-        let fixedCount = 0;
-        for (const user of usersToFix) {
-            // Extract first name from email or use username
-            let newFullName = user.username;
-            if (user.email) {
-                const emailPart = user.email.split('@')[0];
-                // Convert email username to a readable name
-                newFullName = emailPart.replace(/[0-9]/g, '').replace(/[._-]/g, ' ');
-                newFullName = newFullName.split(' ')
-                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                    .join(' ');
-            }
-
-            if (!newFullName || newFullName.trim() === '') {
-                newFullName = `User ${user._id.toString().slice(-4)}`;
-            }
-
-            await User.findByIdAndUpdate(user._id, {
-                fullName: newFullName,
-                avatar: `https://placehold.co/150x150/4F46E5/FFFFFF?text=${newFullName.charAt(0).toUpperCase()}`
+        console.log('🔧 Restoring user name:', { userId, fullName, firstName, lastName });
+        
+        if (!userId || !fullName) {
+            return res.status(400).json({
+                success: false,
+                message: 'userId and fullName are required'
             });
-
-            console.log(`✅ Fixed user ${user._id}: ${user.email} -> ${newFullName}`);
-            fixedCount++;
         }
+
+        // Update user with real name
+        const updatedUser = await User.findByIdAndUpdate(userId, {
+            fullName,
+            firstName: firstName || fullName.split(' ')[0],
+            lastName: lastName || fullName.split(' ').slice(1).join(' '),
+            avatar: `https://placehold.co/150x150/4F46E5/FFFFFF?text=${fullName.charAt(0).toUpperCase()}`
+        }, { new: true });
+
+        if (!updatedUser) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        console.log('✅ User name restored:', updatedUser.fullName);
 
         res.json({
             success: true,
-            message: `Fixed ${fixedCount} users`,
-            fixedCount
+            message: `Name restored to: ${fullName}`,
+            user: {
+                id: updatedUser._id,
+                fullName: updatedUser.fullName,
+                firstName: updatedUser.firstName,
+                lastName: updatedUser.lastName
+            }
         });
 
     } catch (error) {
-        console.error('❌ Error fixing users:', error);
+        console.error('❌ Error restoring user name:', error);
         res.status(500).json({
             success: false,
-            message: 'Error fixing users',
+            message: 'Error restoring user name',
+            error: error.message
+        });
+    }
+});
+
+// Fix users with missing fullName
+app.post('/api/fix-users', async (req, res) => {
+    try {
+        console.log('🔧 Starting user data inspection...');
+        
+        // Get all users to inspect their current state
+        const allUsers = await User.find({}).lean();
+        console.log(`📊 Found ${allUsers.length} users in database`);
+
+        const userDetails = allUsers.map(user => {
+            const fields = Object.keys(user);
+            return {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                firstName: user.firstName || 'NOT_SET',
+                lastName: user.lastName || 'NOT_SET', 
+                fullName: user.fullName || 'NOT_SET',
+                name: user.name || 'NOT_SET',
+                availableFields: fields,
+                createdAt: user.createdAt || 'NOT_SET',
+                joinedAt: user.joinedAt || 'NOT_SET'
+            };
+        });
+
+        res.json({
+            success: true,
+            message: 'User data inspection completed',
+            totalUsers: allUsers.length,
+            users: userDetails,
+            note: 'Showing all available user data fields'
+        });
+
+    } catch (error) {
+        console.error('❌ Error inspecting users:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error inspecting users',
             error: error.message
         });
     }
