@@ -598,9 +598,19 @@ app.post('/api/login', async (req, res) => {
         
         let isValidPassword = false;
         
-        // Use bcrypt to compare plaintext password with stored hash
-        console.log('🔍 Using bcrypt password comparison...');
-        isValidPassword = await bcrypt.compare(password, user.password);
+        // Use the correct hash method: SHA256(password + salt) then bcrypt comparison
+        console.log('🔍 Using SHA256+salt then bcrypt password comparison...');
+        
+        if (user.salt) {
+            const crypto = require('crypto');
+            const sha256WithSalt = crypto.createHash('sha256').update(password + user.salt).digest('hex');
+            isValidPassword = await bcrypt.compare(sha256WithSalt, user.password);
+            console.log('🔍 Hash method: SHA256(password + salt) -> bcrypt compare');
+        } else {
+            // Fallback to direct bcrypt comparison if no salt
+            isValidPassword = await bcrypt.compare(password, user.password);
+            console.log('🔍 Hash method: Direct bcrypt compare (no salt)');
+        }
         
         if (!isValidPassword) {
             console.log('❌ Invalid password for:', email);
