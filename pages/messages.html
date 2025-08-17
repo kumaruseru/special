@@ -31,6 +31,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Custom Stylesheet with fallback -->
     <link rel="stylesheet" href="../assets/css/messages.css" onerror="console.warn('messages.css failed to load, using inline fallback')">
+    <link rel="stylesheet" href="../assets/css/telegram-system.css" onerror="console.warn('telegram-system.css failed to load')">>
     <style>
         /* Fallback styles in case CSS file fails to load */
         .glass-pane {
@@ -217,7 +218,12 @@
                                     <img id="chat-user-avatar" src="https://placehold.co/40x40/8A2BE2/FFFFFF?text=U" alt="User Avatar" class="w-10 h-10 rounded-full"/>
                                     <div class="pt-0">
                                         <h2 id="chat-user-name" class="font-bold text-white leading-tight">Chọn cuộc trò chuyện</h2>
-                                        <p id="chat-user-status" class="text-xs text-green-400 mt-1">Hoạt động</p>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            <p id="chat-user-status" class="text-xs text-green-400">Hoạt động</p>
+                                            <span class="text-gray-500">•</span>
+                                            <p id="connection-status" class="text-xs text-gray-400">🟢 Đã kết nối</p>
+                                            <p id="sync-status" class="text-xs text-blue-400"></p>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="flex items-start gap-2">
@@ -503,20 +509,70 @@
     <script src="../assets/js/user-manager.js"></script>
     <script src="../assets/js/message-manager.js"></script>
     
-    <!-- Custom Script -->
-        <!-- Custom JavaScript -->
+    <!-- New Telegram-like Architecture -->
+    <script src="../assets/js/telegram-core.js"></script>
+    <script src="../assets/js/telegram-ui.js"></script>
+    <script src="../assets/js/telegram-api.js"></script>
+    <script src="../assets/js/telegram-reliability.js"></script>
+    <script src="../assets/js/telegram-integration.js"></script>
+    
+    <!-- Custom JavaScript -->
     <!-- Audio Generator -->
     <script src="../assets/js/audio-generator.js"></script>
-    <!-- Telegram-style messaging system -->
-    <script src="../assets/js/telegram-messages.js"></script>
+    
     <script>
-        // Ensure managers are loaded and user info is updated
+        // Modern messaging system initialization
         document.addEventListener('DOMContentLoaded', async function() {
-            console.log('🚀 DOM loaded, initializing modern messaging system...');
+            console.log('🚀 DOM loaded, initializing Telegram-like messaging system...');
             
-            // Wait for managers to initialize
+            // Wait for all managers to be ready
+            let attempts = 0;
+            const maxAttempts = 50; // 5 seconds max wait
+            
+            const requiredDependencies = [
+                'userManager',
+                'telegramCore', 
+                'telegramUI',
+                'telegramAPI',
+                'telegramReliability',
+                'telegramIntegration'
+            ];
+            
+            while (attempts < maxAttempts) {
+                const allLoaded = requiredDependencies.every(dep => window[dep]);
+                
+                if (allLoaded) {
+                    console.log('✅ All Telegram components loaded successfully');
+                    break;
+                }
+                
+                const missing = requiredDependencies.filter(dep => !window[dep]);
+                console.log(`⏳ Waiting for: ${missing.join(', ')}`);
+                
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+            
+            if (attempts >= maxAttempts) {
+                const missing = requiredDependencies.filter(dep => !window[dep]);
+                console.warn('⚠️ Some components failed to load:', missing);
+                
+                // Show user notification
+                const notification = document.createElement('div');
+                notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-yellow-600 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+                notification.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <span>⚠️</span>
+                        <span>Một số tính năng có thể không hoạt động đầy đủ</span>
+                    </div>
+                `;
+                document.body.appendChild(notification);
+                
+                setTimeout(() => notification.remove(), 5000);
+            }
+            
+            // Force user data refresh
             if (window.userManager) {
-                console.log('👤 UserManager available, forcing refresh...');
                 try {
                     await window.userManager.forceRefresh();
                     console.log('✅ User data refreshed');
@@ -525,15 +581,97 @@
                 }
             }
             
-            // Legacy fallback
-            setTimeout(() => {
-                if (typeof loadUserInfo === 'function') {
-                    loadUserInfo();
-                }
-            }, 100);
+            // Show system info in console
+            console.log('📊 System Status:', {
+                userManager: !!window.userManager,
+                telegramCore: !!window.telegramCore,
+                telegramUI: !!window.telegramUI,
+                telegramAPI: !!window.telegramAPI,
+                telegramReliability: !!window.telegramReliability,
+                telegramIntegration: !!window.telegramIntegration,
+                environment: window.telegramAPI?.getEnvironmentInfo(),
+                reliability: window.telegramReliability?.getQueueStats()
+            });
             
-            console.log('✅ Modern messaging system initialized');
+            console.log('✅ Telegram-like messaging system ready');
         });
+        
+        // Debug function for development
+        window.debugTelegram = function() {
+            console.log('🔍 === TELEGRAM SYSTEM DEBUG INFO ===');
+            
+            // Basic component status
+            const components = {
+                userManager: !!window.userManager,
+                telegramCore: !!window.telegramCore,
+                telegramUI: !!window.telegramUI,
+                telegramAPI: !!window.telegramAPI,
+                telegramReliability: !!window.telegramReliability,
+                telegramIntegration: !!window.telegramIntegration
+            };
+            
+            console.log('📱 Components:', components);
+            
+            // User data
+            if (window.userManager) {
+                console.log('👤 Current User:', window.userManager.getCurrentUser());
+            }
+            
+            // Core stats
+            if (window.telegramIntegration) {
+                console.log('📊 Core Stats:', window.telegramIntegration.getStats());
+            }
+            
+            // API environment
+            if (window.telegramAPI) {
+                console.log('🌐 API Environment:', window.telegramAPI.getEnvironmentInfo());
+            }
+            
+            // Reliability stats
+            if (window.telegramReliability) {
+                console.log('🛡️ Reliability Stats:', window.telegramReliability.getQueueStats());
+            }
+            
+            // Connection state
+            if (window.telegramCore) {
+                console.log('🔗 Connection State:', {
+                    connectionState: window.telegramCore.state.connectionState,
+                    authState: window.telegramCore.state.authState,
+                    syncState: window.telegramCore.state.syncState,
+                    messagesCount: window.telegramCore.messages.size,
+                    conversationsCount: window.telegramCore.conversations.size
+                });
+            }
+            
+            console.log('🔍 === END DEBUG INFO ===');
+        };
+        
+        // Performance monitoring
+        window.telegramPerformance = {
+            startTime: Date.now(),
+            
+            getLoadTime() {
+                return Date.now() - this.startTime;
+            },
+            
+            getMemoryUsage() {
+                if (performance.memory) {
+                    return {
+                        used: Math.round(performance.memory.usedJSHeapSize / 1024 / 1024),
+                        total: Math.round(performance.memory.totalJSHeapSize / 1024 / 1024),
+                        limit: Math.round(performance.memory.jsHeapSizeLimit / 1024 / 1024)
+                    };
+                }
+                return null;
+            },
+            
+            logStats() {
+                console.log('⚡ Performance Stats:', {
+                    loadTime: `${this.getLoadTime()}ms`,
+                    memory: this.getMemoryUsage()
+                });
+            }
+        };
     </script>
 </body>
 </html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mass Update User Names</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white p-8">
+    <div class="max-w-lg mx-auto">
+        <h1 class="text-2xl font-bold mb-6">Mass Update User Names</h1>
+        
+        <div class="space-y-4">
+            <button onclick="updateKnownUsers()" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Update Known Users to Full Names
+            </button>
+            
+            <div class="bg-gray-800 p-4 rounded">
+                <h3 class="font-bold mb-2">Will update:</h3>
+                <ul class="text-sm space-y-1">
+                    <li>• "Hohuong" → "Hồ Hương"</li>
+                    <li>• "nghiaht" → "Nguyễn Nghĩa Trọng"</li>
+                </ul>
+            </div>
+            
+            <div id="results" class="space-y-2"></div>
+        </div>
+    </div>
+
+    <script>
+        async function updateKnownUsers() {
+            const users = [
+                {
+                    currentName: 'Hohuong',
+                    newName: 'Hồ Hương',
+                    id: '689c9bcc1e859ae855bb1e04'
+                },
+                {
+                    currentName: 'nghiaht', 
+                    newName: 'Nguyễn Nghĩa Trọng',
+                    id: '689c9b9d1e859ae855bb1e01'
+                }
+            ];
+
+            clearResults();
+            
+            for (const user of users) {
+                await updateUserName(user);
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between updates
+            }
+        }
+        
+        async function updateUserName(user) {
+            try {
+                addResult(`Updating ${user.currentName} to ${user.newName}...`, 'info');
+                
+                // Direct database update using admin endpoint
+                const response = await fetch('/api/admin/update-user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        userId: user.id,
+                        fullName: user.newName,
+                        name: user.newName,
+                        firstName: user.newName.split(' ')[0],
+                        lastName: user.newName.split(' ').slice(1).join(' ')
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ Successfully updated ${user.currentName} to ${user.newName}`, 'success');
+                } else {
+                    addResult(`❌ Failed to update ${user.currentName}: ${response.status}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Update error:', error);
+                addResult(`❌ Error updating ${user.currentName}: ${error.message}`, 'error');
+            }
+        }
+        
+        function addResult(message, type) {
+            const resultsDiv = document.getElementById('results');
+            const resultEl = document.createElement('div');
+            
+            const colors = {
+                info: 'bg-blue-800 text-blue-200',
+                success: 'bg-green-800 text-green-200', 
+                error: 'bg-red-800 text-red-200'
+            };
+            
+            resultEl.className = `p-3 rounded-md ${colors[type]}`;
+            resultEl.textContent = message;
+            resultsDiv.appendChild(resultEl);
+            
+            // Scroll to bottom
+            resultEl.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

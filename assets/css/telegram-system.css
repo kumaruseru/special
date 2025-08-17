@@ -1,0 +1,280 @@
+/* === TELEGRAM-LIKE MESSAGING SYSTEM STYLES === */
+
+/* Message status animations */
+.message-item .message-status {
+    transition: all 0.2s ease;
+}
+
+.message-item[data-status="sending"] {
+    opacity: 0.7;
+}
+
+.message-item[data-status="failed"] .bg-blue-600 {
+    background-color: #dc2626 !important;
+}
+
+.message-item[data-status="sent"] .message-status {
+    color: #10b981;
+}
+
+.message-item[data-status="delivered"] .message-status {
+    color: #3b82f6;
+}
+
+.message-item[data-status="read"] .message-status {
+    color: #8b5cf6;
+}
+
+/* Conversation active state */
+.conversation-item.bg-blue-600\/20 {
+    background-color: rgba(37, 99, 235, 0.2);
+    border-left: 3px solid #3b82f6;
+}
+
+/* Connection status indicators */
+#connection-status {
+    transition: color 0.3s ease;
+}
+
+#connection-status:contains("🔴") {
+    color: #ef4444 !important;
+}
+
+#connection-status:contains("🟡") {
+    color: #f59e0b !important;
+}
+
+#connection-status:contains("🟢") {
+    color: #10b981 !important;
+}
+
+/* Sync status animation */
+#sync-status:not(:empty) {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Message queue indicators */
+.message-item[data-temp-id] {
+    position: relative;
+}
+
+.message-item[data-temp-id]::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -3px;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, #3b82f6, #1d4ed8);
+    animation: sending-pulse 1.5s infinite;
+}
+
+@keyframes sending-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+}
+
+/* Error toast styling */
+.error-toast {
+    animation: slideInFromTop 0.3s ease-out;
+}
+
+.error-toast.removing {
+    animation: slideOutToTop 0.3s ease-in;
+}
+
+@keyframes slideInFromTop {
+    from {
+        transform: translate(-50%, -100%);
+        opacity: 0;
+    }
+    to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutToTop {
+    from {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
+    to {
+        transform: translate(-50%, -100%);
+        opacity: 0;
+    }
+}
+
+/* Loading states */
+.loading-conversations {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    color: #64748b;
+}
+
+.loading-conversations::before {
+    content: '📡';
+    margin-right: 0.5rem;
+    animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Message ordering */
+.message-item {
+    animation: messageSlideIn 0.2s ease-out;
+}
+
+@keyframes messageSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Retry button for failed messages */
+.message-item[data-status="failed"] {
+    position: relative;
+}
+
+.message-item[data-status="failed"]::after {
+    content: '🔄';
+    position: absolute;
+    right: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.1);
+    transition: all 0.2s ease;
+}
+
+.message-item[data-status="failed"]:hover::after {
+    background: rgba(239, 68, 68, 0.2);
+    transform: translateY(-50%) scale(1.1);
+}
+
+/* Typing indicator */
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    background: rgba(55, 65, 81, 0.5);
+    border-radius: 12px;
+    margin: 8px 0;
+    animation: fadeInOut 0.3s ease;
+}
+
+.typing-indicator .dots {
+    display: flex;
+    gap: 4px;
+}
+
+.typing-indicator .dot {
+    width: 6px;
+    height: 6px;
+    background: #64748b;
+    border-radius: 50%;
+    animation: typing 1.4s infinite;
+}
+
+.typing-indicator .dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-indicator .dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-10px); }
+}
+
+@keyframes fadeInOut {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Unread count badge */
+.unread-badge {
+    animation: badgePulse 0.3s ease-out;
+}
+
+@keyframes badgePulse {
+    from { transform: scale(0); }
+    to { transform: scale(1); }
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .message-item .max-w-xs {
+        max-width: 280px;
+    }
+    
+    .message-item .max-w-md {
+        max-width: 320px;
+    }
+    
+    .conversation-item {
+        padding: 12px 16px;
+    }
+    
+    #chat-header {
+        padding: 12px 16px;
+    }
+}
+
+/* Dark theme enhancements */
+.dark .glass-pane {
+    background: rgba(15, 23, 42, 0.9);
+    border-color: rgba(148, 163, 184, 0.1);
+}
+
+.dark .message-item.own .bg-blue-600 {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+
+.dark .message-item.other .bg-gray-700 {
+    background: rgba(55, 65, 81, 0.8);
+    backdrop-filter: blur(8px);
+}
+
+/* Accessibility improvements */
+.message-item:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+.conversation-item:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: -2px;
+}
+
+/* Performance optimizations */
+.messages-container {
+    contain: layout style paint;
+}
+
+.conversation-item {
+    contain: layout style;
+}
+
+.message-item {
+    contain: layout style;
+}

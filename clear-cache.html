@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Cache & Reload User Data</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white p-8">
+    <div class="max-w-md mx-auto">
+        <h1 class="text-2xl font-bold mb-6">Clear Cache & Reload User Data</h1>
+        
+        <div class="space-y-4">
+            <div class="bg-gray-800 p-4 rounded-md">
+                <h3 class="font-semibold mb-2">Current User Info:</h3>
+                <div id="currentUserInfo">Loading...</div>
+            </div>
+            
+            <button onclick="clearCacheAndReload()" 
+                    class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                Clear Cache & Reload User Data
+            </button>
+            
+            <button onclick="forceReloadUserInfo()" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Force Reload User Info
+            </button>
+            
+            <div id="result" class="mt-4 p-4 rounded-md hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        async function loadCurrentUserInfo() {
+            try {
+                const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+                if (!token) {
+                    document.getElementById('currentUserInfo').innerHTML = 'No token found';
+                    return;
+                }
+                
+                // Get fresh data from API
+                const response = await fetch('/api/profile/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const userInfo = `
+                        <div class="text-sm space-y-1">
+                            <div><strong>ID:</strong> ${data.user.id}</div>
+                            <div><strong>Email:</strong> ${data.user.email}</div>
+                            <div><strong>Full Name:</strong> ${data.user.fullName || 'Not set'}</div>
+                            <div><strong>Name:</strong> ${data.user.name || 'Not set'}</div>
+                            <div><strong>Username:</strong> ${data.user.username || 'Not set'}</div>
+                        </div>
+                    `;
+                    document.getElementById('currentUserInfo').innerHTML = userInfo;
+                    
+                    // Also check localStorage
+                    const localStorageInfo = `
+                        <div class="mt-4 pt-4 border-t border-gray-600">
+                            <h4 class="font-semibold mb-2">LocalStorage:</h4>
+                            <div class="text-sm space-y-1">
+                                <div><strong>userName:</strong> ${localStorage.getItem('userName') || 'Not set'}</div>
+                                <div><strong>userEmail:</strong> ${localStorage.getItem('userEmail') || 'Not set'}</div>
+                                <div><strong>fullName:</strong> ${localStorage.getItem('fullName') || 'Not set'}</div>
+                                <div><strong>userInfo:</strong> ${localStorage.getItem('userInfo') || 'Not set'}</div>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('currentUserInfo').innerHTML += localStorageInfo;
+                    
+                } else {
+                    document.getElementById('currentUserInfo').innerHTML = `Error: ${data.message}`;
+                }
+                
+            } catch (error) {
+                document.getElementById('currentUserInfo').innerHTML = `Error: ${error.message}`;
+            }
+        }
+        
+        async function clearCacheAndReload() {
+            try {
+                showResult('Clearing cache and reloading...', 'info');
+                
+                // Clear relevant localStorage items
+                const itemsToKeep = ['token', 'authToken', 'isLoggedIn'];
+                const allKeys = Object.keys(localStorage);
+                
+                allKeys.forEach(key => {
+                    if (!itemsToKeep.includes(key)) {
+                        localStorage.removeItem(key);
+                    }
+                });
+                
+                showResult('Cache cleared! Reloading user data...', 'success');
+                
+                // Reload user info
+                await forceReloadUserInfo();
+                
+            } catch (error) {
+                showResult(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function forceReloadUserInfo() {
+            try {
+                showResult('Force reloading user info...', 'info');
+                
+                const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+                const response = await fetch('/api/profile/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Update localStorage with fresh data
+                    localStorage.setItem('userName', data.user.fullName || data.user.name);
+                    localStorage.setItem('userEmail', data.user.email);
+                    localStorage.setItem('fullName', data.user.fullName);
+                    localStorage.setItem('userInfo', JSON.stringify({
+                        id: data.user.id,
+                        email: data.user.email,
+                        fullName: data.user.fullName,
+                        avatar: data.user.avatar
+                    }));
+                    
+                    showResult('User info reloaded successfully!', 'success');
+                    await loadCurrentUserInfo();
+                    
+                } else {
+                    showResult(`Error: ${data.message}`, 'error');
+                }
+                
+            } catch (error) {
+                showResult(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('result');
+            const bgColor = type === 'success' ? 'bg-green-800 text-green-200' : 
+                           type === 'error' ? 'bg-red-800 text-red-200' : 
+                           'bg-blue-800 text-blue-200';
+            resultDiv.className = `mt-4 p-4 rounded-md ${bgColor}`;
+            resultDiv.textContent = message;
+            resultDiv.classList.remove('hidden');
+        }
+        
+        // Load current user info on page load
+        window.addEventListener('load', loadCurrentUserInfo);
+    </script>
+</body>
+</html>

@@ -1024,6 +1024,7 @@ app.get('/api/debug', (req, res) => {
         version: '2.0', // Updated version to confirm deployment
         endpoints: [
             'GET /api/debug',
+            'GET /api/ping',
             'GET /api/debug-users',
             'GET /api/debug-production',
             'GET /api/debug-raw',
@@ -1041,6 +1042,18 @@ app.get('/api/debug', (req, res) => {
             'POST /api/register',
             'GET /health'
         ]
+    });
+});
+
+// Ping endpoint for connection quality testing
+app.all('/api/ping', (req, res) => {
+    const startTime = Date.now();
+    res.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        latency: Date.now() - startTime,
+        method: req.method,
+        userAgent: req.get('User-Agent')?.substring(0, 50) + '...'
     });
 });
 
