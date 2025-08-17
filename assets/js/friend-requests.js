@@ -70,6 +70,17 @@ class FriendRequestsManager {
                 const result = await response.json();
                 this.currentUser = result.user || result;
                 console.log('Current user:', this.currentUser);
+                
+                // Update localStorage with fresh data from server
+                if (this.currentUser) {
+                    localStorage.setItem('userInfo', JSON.stringify(this.currentUser));
+                    localStorage.setItem('userData', JSON.stringify(this.currentUser));
+                    localStorage.setItem('userName', this.currentUser.fullName || this.currentUser.name);
+                    localStorage.setItem('fullName', this.currentUser.fullName || this.currentUser.name);
+                    localStorage.setItem('userEmail', this.currentUser.email);
+                    console.log('✅ Updated localStorage with fresh user data');
+                }
+                
             } else if (response.status === 401 || response.status === 403) {
                 // Only clear tokens for actual authentication errors
                 console.log('Auth failed with 401/403, clearing tokens');
@@ -617,51 +628,128 @@ class FriendRequestsManager {
             }
 
             console.log('Setting up 3D background...');
+            
+            // Validate window dimensions
+            if (!window.innerWidth || !window.innerHeight) {
+                console.log('Invalid window dimensions, waiting...');
+                setTimeout(() => this.setup3DBackground(), 1000);
+                return;
+            }
+
             const scene = new THREE.Scene();
             const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+            const renderer = new THREE.WebGLRenderer({ 
+                canvas, 
+                alpha: true,
+                antialias: false, // Disable for performance
+                powerPreference: "low-power" // Prefer low power for stability
+            });
             
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setClearColor(0x000011, 0.8);
             
-            // Add some stars
+            // Add some stars with error checking
             const starsGeometry = new THREE.BufferGeometry();
-            const starsMaterial = new THREE.PointsMaterial({ color: 0xFFFFFF, size: 2 });
+            const starsMaterial = new THREE.PointsMaterial({ 
+                color: 0xFFFFFF, 
+                size: 2,
+                sizeAttenuation: false // Prevent size calculation errors
+            });
             
             const starsVertices = [];
-            for (let i = 0; i < 1000; i++) {
+            const vertexCount = 500; // Reduce count for better performance
+            
+            for (let i = 0; i < vertexCount; i++) {
                 starsVertices.push(
-                    (Math.random() - 0.5) * 2000,
-                    (Math.random() - 0.5) * 2000,
-                    (Math.random() - 0.5) * 2000
+                    (Math.random() - 0.5) * 1000, // Reduce range
+                    (Math.random() - 0.5) * 1000,
+                    (Math.random() - 0.5) * 1000
                 );
             }
             
-            starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
-            const stars = new THREE.Points(starsGeometry, starsMaterial);
-            scene.add(stars);
-            
-            camera.position.z = 5;
-            
-            function animate() {
-                requestAnimationFrame(animate);
-                stars.rotation.x += 0.001;
-                stars.rotation.y += 0.002;
-                renderer.render(scene, camera);
+            if (starsVertices.length > 0) {
+                starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+                const stars = new THREE.Points(starsGeometry, starsMaterial);
+                scene.add(stars);
+                
+                camera.position.z = 5;
+                
+                let animationId;
+                function animate() {
+                    try {
+                        animationId = requestAnimationFrame(animate);
+                        
+                        // Add null checks
+                        if (stars && stars.rotation) {
+                            stars.rotation.x += 0.001;
+                            stars.rotation.y += 0.002;
+                        }
+                        
+                        if (renderer && scene && camera) {
+                            renderer.render(scene, camera);
+                        }
+                    } catch (animError) {
+                        console.error('Animation error:', animError);
+                        if (animationId) {
+                            cancelAnimationFrame(animationId);
+                        }
+                    }
+                }
+                
+                animate();
+                console.log('3D background initialized successfully');
+                
+                // Handle resize with error checking
+                const handleResize = () => {
+                    try {
+                        if (camera && renderer && window.innerWidth && window.innerHeight) {
+                            camera.aspect = window.innerWidth / window.innerHeight;
+                            camera.updateProjectionMatrix();
+                            renderer.setSize(window.innerWidth, window.innerHeight);
+                        }
+                    } catch (resizeError) {
+                        console.error('Resize error:', resizeError);
+                    }
+                };
+                
+                window.addEventListener('resize', handleResize);
+                
+                // Cleanup on page unload
+                window.addEventListener('beforeunload', () => {
+                    try {
+                        if (animationId) {
+                            cancelAnimationFrame(animationId);
+                        }
+                        if (renderer && renderer.dispose) {
+                            renderer.dispose();
+                        }
+                        if (starsGeometry && starsGeometry.dispose) {
+                            starsGeometry.dispose();
+                        }
+                        if (starsMaterial && starsMaterial.dispose) {
+                            starsMaterial.dispose();
+                        }
+                    } catch (cleanupError) {
+                        console.error('Cleanup error:', cleanupError);
+                    }
+                });
+            } else {
+                console.warn('No star vertices created, skipping stars');
             }
-            
-            animate();
-            console.log('3D background initialized successfully');
-            
-            // Handle resize
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
             
         } catch (error) {
             console.error('Error setting up 3D background:', error);
+            // Fallback: Just set a simple dark background
+            const canvas = document.getElementById('cosmic-bg');
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                    ctx.fillStyle = '#000011';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+            }
         }
     }
 
