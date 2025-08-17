@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="../assets/css/forgot-password.css">
+    <link rel="stylesheet" href="../assets/css/check-email.css">
 </head>
 <body>
     <canvas id="bg-canvas"></canvas>
@@ -62,40 +62,6 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="../assets/js/forgot-password.js"></script>
-    <script>
-        // Check URL params for fallback reset link
-        const urlParams = new URLSearchParams(window.location.search);
-        const fallbackLink = urlParams.get('fallback');
-        
-        if (fallbackLink) {
-            // Show debug section if there's a fallback link
-            document.getElementById('debug-section').classList.remove('hidden');
-            document.getElementById('reset-link').href = decodeURIComponent(fallbackLink);
-            document.getElementById('reset-link').textContent = decodeURIComponent(fallbackLink);
-            document.getElementById('reset-link-display').classList.remove('hidden');
-        }
-        
-        // Test functionality
-        document.getElementById('get-reset-link').addEventListener('click', async () => {
-            const email = prompt('Nhập email để lấy reset link:');
-            if (!email) return;
-            
-            try {
-                const response = await fetch(`/api/debug-reset-link/${email}`);
-                const data = await response.json();
-                
-                if (data.success) {
-                    document.getElementById('reset-link').href = data.resetLink;
-                    document.getElementById('reset-link').textContent = data.resetLink;
-                    document.getElementById('reset-link-display').classList.remove('hidden');
-                } else {
-                    alert('❌ ' + data.message);
-                }
-            } catch (error) {
-                alert('❌ Lỗi: ' + error.message);
-            }
-        });
-    </script>
+    <script src="../assets/js/check-email.js"></script>
 </body>
 </html>
