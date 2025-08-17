@@ -15,7 +15,10 @@ class FriendRequestsManager {
     async init() {
         console.log('=== FRIEND REQUESTS PAGE INITIALIZING ===');
         
-        // Check authentication first
+        // Always setup user info first (from storage if needed)
+        this.setupUserInfo();
+        
+        // Check authentication
         await this.checkAuth();
         
         if (!this.currentUser) {
@@ -24,7 +27,7 @@ class FriendRequestsManager {
             return;
         }
         
-        // Setup user info in sidebar
+        // Re-setup user info with fresh data from API
         this.setupUserInfo();
         
         // Load friend requests
@@ -83,22 +86,129 @@ class FriendRequestsManager {
     }
 
     setupUserInfo() {
-        if (!this.currentUser) return;
+        if (!this.currentUser) {
+            console.log('No current user, trying to load from localStorage');
+            // Try to get user info from localStorage as fallback
+            this.loadUserFromStorage();
+            return;
+        }
 
         const userAvatar = document.getElementById('user-avatar');
         const userName = document.getElementById('user-name');
         const userEmail = document.getElementById('user-email');
 
-        if (userAvatar) {
-            userAvatar.src = this.currentUser.avatar || `https://placehold.co/48x48/4F46E5/FFFFFF?text=${this.currentUser.name ? this.currentUser.name.charAt(0) : 'U'}`;
+        console.log('Setting up user info with:', this.currentUser);
+
+        // Determine display name with proper priority
+        let displayName = 'User';
+        if (this.currentUser.fullName) {
+            displayName = this.currentUser.fullName;
+        } else if (this.currentUser.firstName && this.currentUser.lastName) {
+            displayName = `${this.currentUser.firstName} ${this.currentUser.lastName}`;
+        } else if (this.currentUser.firstName) {
+            displayName = this.currentUser.firstName;
+        } else if (this.currentUser.name) {
+            displayName = this.currentUser.name;
+        } else if (this.currentUser.username) {
+            displayName = this.currentUser.username;
+        } else if (this.currentUser.email) {
+            displayName = this.currentUser.email.split('@')[0];
+        }
+
+        // Also try localStorage fallback
+        if (displayName === 'User') {
+            const storedName = localStorage.getItem('userName') || localStorage.getItem('fullName');
+            if (storedName) {
+                displayName = storedName;
+            }
         }
 
         if (userName) {
-            userName.textContent = this.currentUser.name || `${this.currentUser.firstName || ''} ${this.currentUser.lastName || ''}`.trim() || 'User';
+            userName.textContent = displayName;
+            console.log('Set username to:', displayName);
         }
 
         if (userEmail) {
-            userEmail.textContent = `@${this.currentUser.email ? this.currentUser.email.split('@')[0] : 'user'}`;
+            let emailDisplay = '@user';
+            if (this.currentUser.username) {
+                emailDisplay = `@${this.currentUser.username}`;
+            } else if (this.currentUser.email) {
+                emailDisplay = `@${this.currentUser.email.split('@')[0]}`;
+            }
+            userEmail.textContent = emailDisplay;
+        }
+
+        if (userAvatar) {
+            const firstLetter = displayName.charAt(0).toUpperCase();
+            userAvatar.src = this.currentUser.avatar || `https://placehold.co/48x48/4F46E5/FFFFFF?text=${firstLetter}`;
+        }
+    }
+
+    loadUserFromStorage() {
+        console.log('Loading user from localStorage...');
+        
+        // Try multiple storage keys
+        const userInfo = localStorage.getItem('userInfo') || localStorage.getItem('userData');
+        const userName = localStorage.getItem('userName') || localStorage.getItem('fullName');
+        const userEmail = localStorage.getItem('userEmail') || localStorage.getItem('email');
+        
+        console.log('Available storage data:', {
+            userInfo: !!userInfo,
+            userName: userName,
+            userEmail: userEmail
+        });
+
+        let displayName = 'User';
+        let emailDisplay = '@user';
+
+        // Try to parse userInfo first
+        if (userInfo) {
+            try {
+                const user = JSON.parse(userInfo);
+                if (user.fullName) {
+                    displayName = user.fullName;
+                } else if (user.name) {
+                    displayName = user.name;
+                } else if (user.firstName && user.lastName) {
+                    displayName = `${user.firstName} ${user.lastName}`;
+                }
+                
+                if (user.username) {
+                    emailDisplay = `@${user.username}`;
+                } else if (user.email) {
+                    emailDisplay = `@${user.email.split('@')[0]}`;
+                }
+            } catch (e) {
+                console.error('Error parsing userInfo:', e);
+            }
+        }
+
+        // Fallback to individual fields
+        if (displayName === 'User' && userName) {
+            displayName = userName;
+        }
+        
+        if (emailDisplay === '@user' && userEmail) {
+            emailDisplay = `@${userEmail.split('@')[0]}`;
+        }
+
+        // Update UI
+        const userNameEl = document.getElementById('user-name');
+        const userEmailEl = document.getElementById('user-email');
+        const userAvatarEl = document.getElementById('user-avatar');
+
+        if (userNameEl) {
+            userNameEl.textContent = displayName;
+            console.log('Set username from storage to:', displayName);
+        }
+
+        if (userEmailEl) {
+            userEmailEl.textContent = emailDisplay;
+        }
+
+        if (userAvatarEl) {
+            const firstLetter = displayName.charAt(0).toUpperCase();
+            userAvatarEl.src = `https://placehold.co/48x48/4F46E5/FFFFFF?text=${firstLetter}`;
         }
     }
 
