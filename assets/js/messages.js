@@ -32,11 +32,25 @@ class TelegramRealtimeMessaging {
 
             // Parse user from token
             const payload = JSON.parse(atob(token.split('.')[1]));
+            
+            // Try to load saved user data first
+            const savedUser = localStorage.getItem('currentUser');
+            let savedUserData = null;
+            if (savedUser) {
+                try {
+                    savedUserData = JSON.parse(savedUser);
+                } catch (e) {
+                    console.warn('Failed to parse saved user data');
+                }
+            }
+            
             this.currentUser = {
                 id: payload.userId,
                 username: payload.username,
-                name: payload.name || payload.username
+                name: savedUserData?.name || payload.name || payload.username || 'User'
             };
+            
+            console.log('👤 Initial currentUser:', this.currentUser);
 
             // Load full user profile from API
             this.loadUserProfile();
@@ -408,15 +422,20 @@ class TelegramRealtimeMessaging {
                 const userProfile = await response.json();
                 console.log('👤 Loaded user profile:', userProfile);
                 
+                // Extract the actual user data if it's wrapped
+                const userData = userProfile.user || userProfile.data || userProfile;
+                
                 // Update current user with full profile data
                 this.currentUser = {
                     ...this.currentUser,
-                    name: userProfile.name || userProfile.fullName || this.currentUser.name,
-                    username: userProfile.username || this.currentUser.username,
-                    email: userProfile.email,
-                    avatar: userProfile.avatar,
-                    bio: userProfile.bio
+                    name: userData.name || userData.fullName || userData.displayName || this.currentUser.name,
+                    username: userData.username || this.currentUser.username,
+                    email: userData.email,
+                    avatar: userData.avatar,
+                    bio: userData.bio
                 };
+
+                console.log('👤 Updated currentUser:', this.currentUser);
 
                 // Save to localStorage for offline access
                 localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
@@ -705,6 +724,8 @@ class TelegramRealtimeMessaging {
 
     // Update User Profile Information
     updateUserProfile() {
+        console.log('🔄 updateUserProfile called with currentUser:', this.currentUser);
+        
         if (this.currentUser) {
             const userNameElement = document.getElementById('user-name');
             const userUsernameElement = document.getElementById('user-username');
@@ -717,6 +738,8 @@ class TelegramRealtimeMessaging {
                                'Unknown User';
             
             const username = this.currentUser.username || 'user';
+            
+            console.log('👤 Display name determined:', displayName);
             
             if (userNameElement) {
                 userNameElement.textContent = displayName;
