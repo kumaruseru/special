@@ -184,6 +184,38 @@ const UserSchema = new mongoose.Schema({
 // Create User model
 const User = mongoose.model('User', UserSchema);
 
+// Post Schema
+const PostSchema = new mongoose.Schema({
+    content: { type: String, required: true },
+    author: {
+        id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+        username: { type: String, required: true },
+        email: { type: String, required: true },
+        fullName: { type: String },
+        avatar: { type: String }
+    },
+    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    comments: [{
+        author: {
+            id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+            username: { type: String },
+            fullName: { type: String },
+            avatar: { type: String }
+        },
+        content: { type: String, required: true },
+        createdAt: { type: Date, default: Date.now }
+    }],
+    images: [{ type: String }],
+    visibility: { type: String, enum: ['public', 'friends', 'private'], default: 'public' },
+    tags: [{ type: String }],
+    shares: { type: Number, default: 0 }
+}, {
+    timestamps: true
+});
+
+// Create Post model
+const Post = mongoose.model('Post', PostSchema);
+
 console.log('Setting up request logging middleware...');
 // Request logging middleware
 app.use((req, res, next) => {
@@ -368,75 +400,88 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
+// Debug endpoint to check API status
+app.get('/api/debug', (req, res) => {
+    res.json({
+        success: true,
+        message: 'API is working',
+        timestamp: new Date().toISOString(),
+        endpoints: [
+            'GET /api/debug',
+            'GET /api/posts',
+            'POST /api/register',
+            'GET /health'
+        ]
+    });
+});
+
 // Posts API endpoint
 app.get('/api/posts', async (req, res) => {
+    console.log('📝 Posts API called with:', req.query);
+    logger.info('Posts API accessed', { query: req.query, ip: req.ip });
+    
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
 
-        // For now, return mock data - you can replace this with actual database queries
-        const mockPosts = [
-            {
-                id: '1',
-                content: 'Welcome to the Cosmic Social Network! 🌟',
-                author: {
-                    name: 'Space Explorer',
-                    email: 'explorer@cosmos.space',
-                    avatar: 'S'
-                },
-                timestamp: new Date().toISOString(),
-                likes: 42,
-                comments: 7
-            },
-            {
-                id: '2',
-                content: 'Just discovered a new galaxy! The universe is truly amazing. ✨🌌',
-                author: {
-                    name: 'Cosmic Researcher',
-                    email: 'researcher@cosmos.space',
-                    avatar: 'C'
-                },
-                timestamp: new Date(Date.now() - 3600000).toISOString(),
-                likes: 128,
-                comments: 23
-            },
-            {
-                id: '3',
-                content: 'Who else loves stargazing? Tonight the constellation is perfect! 🌟🔭',
-                author: {
-                    name: 'Star Watcher',
-                    email: 'watcher@cosmos.space',
-                    avatar: 'S'
-                },
-                timestamp: new Date(Date.now() - 7200000).toISOString(),
-                likes: 89,
-                comments: 15
-            }
-        ];
+        console.log('📊 Pagination:', { page, limit, skip });
 
-        // Simulate pagination
-        const startIndex = skip;
-        const endIndex = skip + limit;
-        const paginatedPosts = mockPosts.slice(startIndex, endIndex);
+        // Get total count for pagination
+        const totalPosts = await Post.countDocuments({ visibility: 'public' });
+        console.log('📈 Total posts found:', totalPosts);
+
+        // Fetch posts from database with author population
+        const posts = await Post.find({ visibility: 'public' })
+            .sort({ createdAt: -1 }) // Newest first
+            .skip(skip)
+            .limit(limit)
+            .populate('author.id', 'fullName email avatar username')
+            .populate('likes', 'fullName username')
+            .lean(); // Convert to plain JS objects for better performance
+
+        console.log('📋 Posts fetched:', posts.length);
+
+        // Format posts for frontend
+        const formattedPosts = posts.map(post => ({
+            id: post._id.toString(),
+            content: post.content,
+            author: {
+                id: post.author.id?._id?.toString() || post.author.id,
+                name: post.author.fullName || post.author.username || 'Anonymous User',
+                email: post.author.email || 'user@space.com',
+                avatar: post.author.avatar || post.author.fullName?.charAt(0)?.toUpperCase() || 'U'
+            },
+            timestamp: post.createdAt,
+            likes: post.likes?.length || 0,
+            comments: post.comments?.length || 0,
+            images: post.images || [],
+            tags: post.tags || [],
+            shares: post.shares || 0
+        }));
+
+        console.log('✅ Sending response with', formattedPosts.length, 'posts');
 
         res.json({
             success: true,
-            posts: paginatedPosts,
+            posts: formattedPosts,
             pagination: {
                 currentPage: page,
-                totalPages: Math.ceil(mockPosts.length / limit),
-                totalPosts: mockPosts.length,
-                hasNextPage: endIndex < mockPosts.length,
-                hasPrevPage: page > 1
+                totalPages: Math.ceil(totalPosts / limit),
+                totalPosts: totalPosts,
+                hasNextPage: skip + limit < totalPosts,
+                hasPrevPage: page > 1,
+                limit: limit
             }
         });
 
     } catch (error) {
-        logger.error('Posts API error', { error: error.message });
+        console.error('❌ Posts API error:', error);
+        logger.error('Posts API error', { error: error.message, stack: error.stack });
         res.status(500).json({
             success: false,
-            message: 'Failed to load posts'
+            message: 'Failed to load posts',
+            error: error.message
         });
     }
 });
