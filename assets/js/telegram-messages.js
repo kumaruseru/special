@@ -630,9 +630,28 @@ class TelegramMessaging {
             'currentUser object': this.currentUser
         });
 
+        // Get sender display name - UPDATED to use UserManager
+        let senderDisplayName = message.senderName || 'Unknown';
+        
+        if (!isOwn && message.senderId && window.userManager) {
+            // Try to get fresh sender data from UserManager
+            try {
+                const senderData = window.userManager.getCachedUserData(message.senderId);
+                if (senderData && senderData.name) {
+                    senderDisplayName = senderData.name;
+                    console.log('✅ Using fresh sender name from UserManager:', senderDisplayName);
+                } else {
+                    console.log('📝 Using message sender name:', senderDisplayName);
+                }
+            } catch (error) {
+                console.warn('⚠️ Failed to get sender data from UserManager:', error);
+            }
+        }
+
         const messageEl = document.createElement('div');
         messageEl.className = `message-item ${isOwn ? 'own' : 'other'}`;
         messageEl.setAttribute('data-message-id', message.id);
+        messageEl.setAttribute('data-sender-id', message.senderId || '');
 
         // Check if message is long (hash-like or very long text)
         const isLongMessage = displayText.length > 50;
@@ -650,7 +669,7 @@ class TelegramMessaging {
                     ? 'bg-blue-600 text-white' 
                     : 'bg-gray-700 text-gray-100'
             } ${isLongMessage ? 'message-long' : ''}">
-                ${!isOwn ? `<div class="text-xs text-gray-400 mb-1">${message.senderName}</div>` : ''}
+                ${!isOwn ? `<div class="text-xs text-gray-400 mb-1 sender-name-display">${senderDisplayName}</div>` : ''}
                 <div class="${messageTextClass}">${this.escapeHtml(displayText)}</div>
                 <div class="text-xs ${isOwn ? 'text-blue-200' : 'text-gray-500'} mt-1 flex items-center ${isOwn ? 'justify-end' : 'justify-start'}">
                     <span>${timeStr}</span>
@@ -1467,7 +1486,7 @@ window.renderConversations = function(conversations) {
     }
 
     // Get current user for comparison
-    const currentUser = JSON.parse(localStorage.getItem('user') || localStorage.getItem('userInfo') || '{}');
+    const currentUser = window.userManager?.getCurrentUser() || JSON.parse(localStorage.getItem('user') || localStorage.getItem('userInfo') || '{}');
     
     conversationsList.innerHTML = conversations.map(conv => {
         console.log('📋 Processing conversation:', conv);
@@ -1507,7 +1526,7 @@ window.renderConversations = function(conversations) {
             console.log('✅ Found otherUser from conv.user:', otherUser);
         }
         
-        // Extract name safely
+        // Extract name safely - UPDATED to use UserManager
         let displayName = 'Người dùng';
         let avatar = 'https://placehold.co/48x48/4F46E5/FFFFFF?text=U';
         
@@ -1516,14 +1535,37 @@ window.renderConversations = function(conversations) {
                 'otherUser.name': otherUser.name,
                 'otherUser.fullName': otherUser.fullName,
                 'otherUser.username': otherUser.username,
+                'otherUser.id': otherUser.id || otherUser._id,
                 'otherUser full object': otherUser
             });
             
-            displayName = otherUser.name || otherUser.fullName || otherUser.username || 'Người dùng';
+            // Try to get fresh name from UserManager if available
+            const otherUserId = otherUser.id || otherUser._id;
+            let freshUserData = null;
             
-            console.log('📝 Final displayName chosen:', displayName);
+            if (window.userManager && otherUserId) {
+                try {
+                    // Try to get cached user data from UserManager
+                    freshUserData = window.userManager.getCachedUserData(otherUserId);
+                    console.log('🔄 UserManager cached data for user', otherUserId, ':', freshUserData);
+                } catch (error) {
+                    console.warn('⚠️ Failed to get user data from UserManager:', error);
+                }
+            }
             
-            if (otherUser.avatar) {
+            // Use fresh data if available, otherwise fall back to conversation data
+            if (freshUserData && freshUserData.name) {
+                displayName = freshUserData.name;
+                console.log('✅ Using fresh name from UserManager:', displayName);
+            } else {
+                displayName = otherUser.name || otherUser.fullName || otherUser.username || 'Người dùng';
+                console.log('📝 Using conversation data name:', displayName);
+            }
+            
+            // Set avatar
+            if (freshUserData && freshUserData.avatar) {
+                avatar = freshUserData.avatar;
+            } else if (otherUser.avatar) {
                 avatar = otherUser.avatar;
             } else {
                 avatar = `https://placehold.co/48x48/4F46E5/FFFFFF?text=${displayName.charAt(0).toUpperCase()}`;
@@ -1547,12 +1589,13 @@ window.renderConversations = function(conversations) {
         return `
             <div class="conversation-item p-4 hover:bg-gray-700/30 cursor-pointer border-b border-gray-700/30 transition-colors" 
                  data-conversation-id="${conversationId}"
+                 data-user-id="${otherUser ? (otherUser.id || otherUser._id) : ''}"
                  onclick="selectConversation('${conversationId}', '${displayName.replace(/'/g, "\\'")}', '${avatar}')">
                 <div class="flex items-center space-x-3">
                     <img src="${avatar}" alt="${displayName}" class="w-12 h-12 rounded-full object-cover">
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center justify-between">
-                            <h3 class="font-semibold text-white truncate">${displayName}</h3>
+                            <h3 class="font-semibold text-white truncate user-name-display">${displayName}</h3>
                             ${timestamp ? `<span class="text-xs text-gray-400 timestamp">${timestamp}</span>` : ''}
                         </div>
                         <p class="text-sm text-gray-400 truncate last-message">${lastMessageText}</p>

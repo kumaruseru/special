@@ -148,7 +148,7 @@ class UserManager {
             const data = await response.json();
             
             if (data.success && data.user) {
-                console.log('✅ UserManager: User data updated:', data.user);
+                console.log('✅ UserManager: User data updated successfully:', data.user);
                 
                 // Update current user
                 this.currentUser = data.user;
@@ -159,6 +159,9 @@ class UserManager {
                 
                 // Notify all listeners about the update
                 this.notifyListeners();
+                
+                // Force UI update
+                this.updateUIElements();
                 
                 return data.user;
             } else {
@@ -174,6 +177,50 @@ class UserManager {
     // Get current user data
     getCurrentUser() {
         return this.currentUser;
+    }
+    
+    // Get cached user data by ID - for checking other users
+    getCachedUserData(userId) {
+        if (!userId) return null;
+        
+        // If it's current user, return current data
+        if (this.currentUser && (this.currentUser.id === userId || this.currentUser._id === userId)) {
+            return this.currentUser;
+        }
+        
+        // For other users, check if we have cached data
+        try {
+            const cacheKey = `userCache_${userId}`;
+            const cachedData = localStorage.getItem(cacheKey);
+            const cacheTime = localStorage.getItem(`${cacheKey}_time`);
+            
+            if (cachedData && cacheTime) {
+                const age = Date.now() - parseInt(cacheTime);
+                if (age < this.cacheTimeout) {
+                    const userData = JSON.parse(cachedData);
+                    console.log(`📦 UserManager: Found cached data for user ${userId}:`, userData);
+                    return userData;
+                }
+            }
+        } catch (error) {
+            console.warn(`UserManager: Failed to get cached data for user ${userId}:`, error);
+        }
+        
+        return null;
+    }
+    
+    // Cache user data for specific user ID
+    cacheUserData(userId, userData) {
+        if (!userId || !userData) return;
+        
+        try {
+            const cacheKey = `userCache_${userId}`;
+            localStorage.setItem(cacheKey, JSON.stringify(userData));
+            localStorage.setItem(`${cacheKey}_time`, Date.now().toString());
+            console.log(`💾 UserManager: Cached data for user ${userId}`);
+        } catch (error) {
+            console.warn(`UserManager: Failed to cache data for user ${userId}:`, error);
+        }
     }
     
     // Get user display name (with fallbacks like Telegram)
@@ -278,7 +325,7 @@ class UserManager {
         const email = this.currentUser.email || '';
         
         // Update name elements
-        document.querySelectorAll('[data-user="name"], #user-name').forEach(el => {
+        document.querySelectorAll('[data-user="name"], #user-name, .user-name-display, .current-user-name').forEach(el => {
             if (el) el.textContent = displayName;
         });
         
@@ -288,7 +335,7 @@ class UserManager {
         });
         
         // Update avatar elements
-        document.querySelectorAll('[data-user="avatar"], #user-avatar').forEach(el => {
+        document.querySelectorAll('[data-user="avatar"], #user-avatar, .user-avatar, .current-user-avatar').forEach(el => {
             if (el) {
                 if (el.tagName === 'IMG') {
                     el.src = avatar;
@@ -298,6 +345,19 @@ class UserManager {
                 }
             }
         });
+        
+        // Notify other components about the user update
+        window.dispatchEvent(new CustomEvent('userDataUpdated', {
+            detail: { user: this.currentUser, displayName, avatar }
+        }));
+        
+        // Update all conversation lists to show fresh names
+        if (typeof window.loadRealConversations === 'function') {
+            console.log('🔄 UserManager: Refreshing conversations with updated names...');
+            setTimeout(() => {
+                window.loadRealConversations();
+            }, 100); // Small delay to ensure UI updates complete first
+        }
         
         console.log('🎨 UserManager: UI elements updated');
     }

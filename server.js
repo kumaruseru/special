@@ -1722,6 +1722,65 @@ app.post('/api/friend-requests', authenticateToken, async (req, res) => {
     }
 });
 
+// === ADMIN ENDPOINTS (Temporary for name updates) ===
+app.post('/api/admin/update-user', async (req, res) => {
+    try {
+        const { userId, fullName, name, firstName, lastName } = req.body;
+        
+        console.log('🔧 Admin updating user:', userId, 'to name:', fullName);
+        
+        if (!userId || !fullName) {
+            return res.status(400).json({
+                success: false,
+                message: 'userId and fullName are required'
+            });
+        }
+        
+        const updateData = {
+            fullName: fullName.trim(),
+            name: fullName.trim(), // Keep name in sync with fullName
+        };
+        
+        if (firstName) updateData.firstName = firstName.trim();
+        if (lastName) updateData.lastName = lastName.trim();
+        
+        const user = await User.findByIdAndUpdate(
+            userId,
+            updateData,
+            { new: true, select: '-password -salt' }
+        );
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+        
+        console.log('✅ Admin updated user successfully:', user.fullName);
+        
+        res.json({
+            success: true,
+            message: 'User updated successfully',
+            user: {
+                id: user._id,
+                fullName: user.fullName,
+                name: user.name,
+                firstName: user.firstName,
+                lastName: user.lastName
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Admin update error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+});
+
 // === MESSAGING ROUTES ===
 app.get('/api/conversations', authenticateToken, async (req, res) => {
     try {
@@ -1872,6 +1931,67 @@ app.get('/api/conversations/:partnerId/messages', authenticateToken, async (req,
 
     } catch (error) {
         logger.error('Messages fetch error', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+});
+
+// Send message endpoint
+app.post('/api/messages', authenticateToken, async (req, res) => {
+    try {
+        console.log('📤 Sending message from user:', req.user._id);
+        console.log('📝 Message data:', req.body);
+        
+        const { receiverId, content, messageType = 'text' } = req.body;
+        const senderId = req.user._id;
+        
+        if (!receiverId || !content) {
+            return res.status(400).json({
+                success: false,
+                message: 'receiverId and content are required'
+            });
+        }
+        
+        // Create new message
+        const newMessage = new Message({
+            senderId: senderId,
+            receiverId: receiverId,
+            content: content.trim(),
+            messageType: messageType,
+            createdAt: new Date()
+        });
+        
+        // Save message
+        const savedMessage = await newMessage.save();
+        
+        // Populate sender info for response
+        await savedMessage.populate('senderId', 'fullName username avatar');
+        
+        console.log('✅ Message saved successfully:', savedMessage._id);
+        
+        // Format response
+        const formattedMessage = {
+            id: savedMessage._id,
+            text: savedMessage.content,
+            content: savedMessage.content,
+            senderId: savedMessage.senderId._id,
+            senderName: savedMessage.senderId.fullName,
+            receiverId: savedMessage.receiverId,
+            timestamp: savedMessage.createdAt,
+            messageType: savedMessage.messageType,
+            status: 'sent'
+        };
+        
+        res.json({
+            success: true,
+            message: formattedMessage
+        });
+
+    } catch (error) {
+        console.error('❌ Send message error:', error);
+        logger.error('Send message error', { error: error.message });
         res.status(500).json({
             success: false,
             message: 'Internal server error'
