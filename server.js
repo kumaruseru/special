@@ -364,67 +364,57 @@ app.post('/api/get-salt', async (req, res) => {
     }
 });
 
-// Login endpoint
-app.post('/api/login', async (req, res) => {
+// Debug login endpoint
+app.post('/api/debug-login', async (req, res) => {
     try {
         const { email, password } = req.body;
         
+        console.log('🐛 Debug login attempt:', { email, passwordLength: password?.length });
+        
         if (!email || !password) {
-            return res.status(400).json({
+            return res.json({
                 success: false,
-                message: 'Email and password are required'
+                message: 'Email and password required',
+                debug: { email: !!email, password: !!password }
             });
         }
         
-        // Find user by email
-        const user = await User.findOne({ email });
+        // Find user
+        const user = await User.findOne({ email: email.toLowerCase() });
         
         if (!user) {
-            return res.status(401).json({
+            return res.json({
                 success: false,
-                message: 'Invalid email or password'
+                message: 'User not found',
+                debug: { 
+                    email: email,
+                    userExists: false
+                }
             });
         }
         
-        // Check password
+        // Test password comparison
         const isValidPassword = await bcrypt.compare(password, user.password);
         
-        if (!isValidPassword) {
-            return res.status(401).json({
-                success: false,
-                message: 'Invalid email or password'
-            });
-        }
-        
-        // Generate JWT token
-        const token = jwt.sign(
-            { 
-                userId: user._id,
-                email: user.email,
-                fullName: user.fullName
-            },
-            config.jwtSecret,
-            { expiresIn: '7d' }
-        );
-        
         res.json({
-            success: true,
-            message: 'Login successful',
-            token: token,
-            user: {
-                id: user._id,
+            success: isValidPassword,
+            message: isValidPassword ? 'Password correct' : 'Password incorrect',
+            debug: {
                 email: user.email,
-                fullName: user.fullName,
-                username: user.username,
-                avatar: user.avatar
+                userExists: true,
+                passwordValid: isValidPassword,
+                storedPasswordType: user.password.startsWith('$2') ? 'bcrypt' : 'other',
+                inputPasswordLength: password.length,
+                storedPasswordLength: user.password.length
             }
         });
         
     } catch (error) {
-        console.error('Error during login:', error);
+        console.error('❌ Debug login error:', error);
         res.status(500).json({
             success: false,
-            message: 'Internal server error'
+            message: 'Debug error',
+            error: error.message
         });
     }
 });
