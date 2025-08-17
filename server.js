@@ -1501,6 +1501,68 @@ app.get('/api/profile/me', authenticateToken, async (req, res) => {
     }
 });
 
+// Update current user profile
+app.put('/api/profile/me', authenticateToken, async (req, res) => {
+    try {
+        console.log('👤 Updating profile for user:', req.user._id);
+        console.log('📝 Update data:', req.body);
+        
+        const { fullName, firstName, lastName, bio, location } = req.body;
+        
+        const updateData = {};
+        if (fullName !== undefined) updateData.fullName = fullName.trim();
+        if (firstName !== undefined) updateData.firstName = firstName.trim();
+        if (lastName !== undefined) updateData.lastName = lastName.trim();
+        if (bio !== undefined) updateData.bio = bio.trim();
+        if (location !== undefined) updateData.location = location.trim();
+        
+        // Update name field to match fullName for consistency
+        if (fullName !== undefined) updateData.name = fullName.trim();
+        
+        const user = await User.findByIdAndUpdate(
+            req.user._id,
+            updateData,
+            { new: true, select: '-password -salt' }
+        );
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+        
+        console.log('✅ Profile updated successfully:', user.fullName);
+        
+        res.json({
+            success: true,
+            message: 'Profile updated successfully',
+            user: {
+                id: user._id,
+                email: user.email,
+                username: user.username,
+                fullName: user.fullName,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                name: user.name,
+                avatar: user.avatar || `https://placehold.co/150x150/4F46E5/FFFFFF?text=${(user.fullName || user.name || 'U').charAt(0).toUpperCase()}`,
+                bio: user.bio,
+                location: user.location,
+                isVerified: user.isVerified,
+                createdAt: user.createdAt
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Profile update error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+});
+
 // Get user profile (legacy endpoint)
 app.get('/api/profile', authenticateToken, async (req, res) => {
     try {
