@@ -550,8 +550,15 @@ class TelegramMessaging {
             return;
         }
 
-        // Simplified logic: Only use reliable criteria to determine if message is from current user
+        // Determine other user ID for decryption
         const currentUserId = this.currentUser?.id;
+        const otherUserId = this.currentChat; // currentChat contains the ID of the other user
+        
+        // Decrypt message if it's encrypted
+        const decryptedText = this.decryptMessageText(message.text, otherUserId);
+        const displayText = decryptedText || message.text; // Fallback to original if decryption fails
+
+        // Simplified logic: Only use reliable criteria to determine if message is from current user
         const currentUserName = this.currentUser?.name || localStorage.getItem('userName');
         
         // Primary check: Compare user IDs (most reliable)
@@ -600,8 +607,8 @@ class TelegramMessaging {
         messageEl.setAttribute('data-message-id', message.id);
 
         // Check if message is long (hash-like or very long text)
-        const isLongMessage = message.text.length > 50;
-        const isHashLike = /^[a-f0-9]{32,}/.test(message.text) || message.text.includes(':');
+        const isLongMessage = displayText.length > 50;
+        const isHashLike = /^[a-f0-9]{32,}/.test(displayText) || displayText.includes(':');
         const maxWidthClass = isLongMessage ? 'max-w-md lg:max-w-lg' : 'max-w-xs lg:max-w-md';
         
         // Special styling for hash-like messages
@@ -616,7 +623,7 @@ class TelegramMessaging {
                     : 'bg-gray-700 text-gray-100'
             } ${isLongMessage ? 'message-long' : ''}">
                 ${!isOwn ? `<div class="text-xs text-gray-400 mb-1">${message.senderName}</div>` : ''}
-                <div class="${messageTextClass}">${this.escapeHtml(message.text)}</div>
+                <div class="${messageTextClass}">${this.escapeHtml(displayText)}</div>
                 <div class="text-xs ${isOwn ? 'text-blue-200' : 'text-gray-500'} mt-1 flex items-center ${isOwn ? 'justify-end' : 'justify-start'}">
                     <span>${timeStr}</span>
                     ${isOwn ? `<span class="ml-1">${this.getStatusIcon(message.status)}</span>` : ''}
@@ -822,6 +829,46 @@ class TelegramMessaging {
     // === UTILITIES ===
     generateMessageId() {
         return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    // Decrypt message text if it's encrypted
+    decryptMessageText(encryptedText, otherUserId) {
+        try {
+            // Check if message appears to be encrypted (format: hash1:hash2)
+            if (!encryptedText || !encryptedText.includes(':')) {
+                return encryptedText; // Not encrypted, return as-is
+            }
+
+            // Check if E2EEncryption is available (from messages.html)
+            if (typeof E2EEncryption === 'undefined') {
+                console.warn('E2EEncryption not available, returning encrypted text');
+                return encryptedText;
+            }
+
+            const currentUserId = this.currentUser?.id;
+            if (!currentUserId || !otherUserId) {
+                console.warn('Missing user IDs for decryption');
+                return encryptedText;
+            }
+
+            // Generate room key for this conversation
+            const roomKey = E2EEncryption.generateRoomKey(currentUserId, otherUserId);
+            
+            // Try to decrypt the message
+            const decryptedText = E2EEncryption.decryptMessage(encryptedText, roomKey);
+            
+            // If decryption succeeds and returns valid text, use it
+            if (decryptedText && decryptedText !== encryptedText && decryptedText.trim()) {
+                console.log('✅ Message decrypted successfully');
+                return decryptedText;
+            } else {
+                console.warn('Decryption failed or returned empty, using encrypted text');
+                return encryptedText;
+            }
+        } catch (error) {
+            console.error('Error during message decryption:', error);
+            return encryptedText; // Fallback to encrypted text
+        }
     }
 
     escapeHtml(text) {
