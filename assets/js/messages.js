@@ -155,6 +155,20 @@ class TelegramRealtimeMessaging {
         }
     }
 
+    // Flush Message Queue (for offline support)
+    flushMessageQueue() {
+        if (this.messageQueue.length > 0) {
+            console.log(`📤 Flushing ${this.messageQueue.length} queued messages`);
+            
+            const queuedMessages = [...this.messageQueue];
+            this.messageQueue = [];
+            
+            queuedMessages.forEach(message => {
+                this.socket.emit('sendMessage', message);
+            });
+        }
+    }
+
     // Send Message (Telegram-style with queuing)
     async sendMessage(content, chatId = null) {
         if (!content?.trim()) return;
@@ -252,6 +266,154 @@ class TelegramRealtimeMessaging {
         }
 
         console.log('📨 New message received:', message.content.substring(0, 50));
+    }
+
+    // Add message to UI (optimistic updates)
+    addMessageToUI(message) {
+        const chatMessages = this.messages.get(message.chatId) || [];
+        chatMessages.push(message);
+        this.messages.set(message.chatId, chatMessages);
+        
+        if (this.currentChat && message.chatId === this.currentChat.id) {
+            this.renderMessages(chatMessages);
+        }
+    }
+
+    // Replace temporary message with real one
+    replaceTemporaryMessage(tempId, realMessage) {
+        if (this.currentChat) {
+            const chatMessages = this.messages.get(this.currentChat.id) || [];
+            const tempIndex = chatMessages.findIndex(msg => msg.id === tempId);
+            
+            if (tempIndex !== -1) {
+                chatMessages[tempIndex] = realMessage;
+                this.messages.set(this.currentChat.id, chatMessages);
+                this.renderMessages(chatMessages);
+            }
+        }
+    }
+
+    // Update message status
+    updateMessageStatus(messageId, status) {
+        if (this.currentChat) {
+            const chatMessages = this.messages.get(this.currentChat.id) || [];
+            const message = chatMessages.find(msg => msg.id === messageId);
+            
+            if (message) {
+                message.status = status;
+                this.renderMessages(chatMessages);
+            }
+        }
+    }
+
+    // Update conversation with new message
+    updateConversationWithMessage(message) {
+        const conversation = this.conversations.get(message.chatId);
+        if (conversation) {
+            conversation.lastMessage = message;
+            conversation.lastActivity = message.timestamp;
+            
+            // Increment unread count if not in active chat
+            if (!this.currentChat || message.chatId !== this.currentChat.id) {
+                conversation.unreadCount = (conversation.unreadCount || 0) + 1;
+            }
+            
+            this.renderConversations();
+        }
+    }
+
+    // Show notification for new message
+    showNotification(message) {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(`New message from ${message.senderName}`, {
+                body: message.content.substring(0, 100),
+                icon: '/assets/images/icon-192x192.png'
+            });
+        }
+    }
+
+    // Mark message as read
+    markMessageAsRead(messageId) {
+        if (this.socket) {
+            this.socket.emit('markAsRead', { messageId });
+        }
+    }
+
+    // Handle connection errors
+    handleConnectionError(error) {
+        this.connectionState = 'error';
+        this.updateConnectionStatus('Connection Error', '#EF4444');
+        console.error('❌ Connection error:', error);
+        
+        // Implement exponential backoff
+        if (this.retry.attempts < this.retry.maxAttempts) {
+            this.retry.attempts++;
+            const delay = this.retry.delay * Math.pow(2, this.retry.attempts - 1);
+            
+            setTimeout(() => {
+                console.log(`🔄 Retrying connection (attempt ${this.retry.attempts}/${this.retry.maxAttempts})`);
+                this.socket.connect();
+            }, delay);
+        }
+    }
+
+    // Handle typing indicators
+    handleTypingIndicator(data, isTyping) {
+        if (this.currentChat && data.conversationId === this.currentChat.id && data.userId !== this.currentUser.id) {
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) {
+                if (isTyping) {
+                    typingIndicator.classList.remove('hidden');
+                    typingIndicator.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> ${data.username || 'Someone'} is typing...`;
+                } else {
+                    typingIndicator.classList.add('hidden');
+                }
+            }
+        }
+    }
+
+    // Update user presence
+    updateUserPresence(userId, status) {
+        // Update conversation list to show online/offline status
+        for (let [id, conversation] of this.conversations) {
+            if (conversation.participants && conversation.participants.includes(userId)) {
+                conversation.isOnline = (status === 'online');
+                break;
+            }
+        }
+        this.renderConversations();
+    }
+
+    // Get active conversations for current user
+    async getActiveConversations() {
+        try {
+            const response = await fetch('/api/conversations', {
+                headers: {
+                    'Authorization': `Bearer ${this.auth.token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const conversations = await response.json();
+                console.log('📋 Loaded conversations:', conversations.length);
+                
+                // Store conversations
+                this.conversations.clear();
+                conversations.forEach(conv => {
+                    this.conversations.set(conv.id, conv);
+                });
+                
+                this.renderConversations();
+                return conversations;
+            } else {
+                console.error('❌ Failed to load conversations:', response.status);
+                return [];
+            }
+        } catch (error) {
+            console.error('❌ Error loading conversations:', error);
+            return [];
+        }
     }
 
     // UI Rendering Methods
