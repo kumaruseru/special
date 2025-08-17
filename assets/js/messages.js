@@ -19,6 +19,9 @@ class TelegramRealtimeMessaging {
         };
         
         this.initializeEventListeners();
+        
+        // Set initial input state
+        this.updateInputState();
     }
 
     // Initialize Socket Connection with Telegram-style reliability
@@ -625,13 +628,14 @@ class TelegramRealtimeMessaging {
             const conversation = this.conversations.get(chatId);
             if (!conversation) return;
 
-            this.currentChat = conversation;
-            
-            // Update chat header
-            this.updateChatHeader(conversation);
-            this.renderConversations(); // Re-render to show active state
-            
-            // Load messages
+        this.currentChat = conversation;
+        
+        // Update input state
+        this.updateInputState();
+        
+        // Update chat header
+        this.updateChatHeader(conversation);
+        this.renderConversations(); // Re-render to show active state            // Load messages
             await this.loadMessages(chatId);
             
             // Join chat room
@@ -900,11 +904,23 @@ class TelegramRealtimeMessaging {
         if (!messageInput) return;
 
         const content = messageInput.value.trim();
-        if (content) {
+        if (content && this.currentChat) {
             this.sendMessage(content);
             messageInput.value = '';
             messageInput.style.height = 'auto';
             this.sendTypingIndicator(false);
+        } else if (!this.currentChat) {
+            // Show message to select conversation
+            const chatName = document.getElementById('chat-name');
+            if (chatName) {
+                const originalText = chatName.textContent;
+                chatName.textContent = 'Please select a conversation first';
+                chatName.style.color = '#EF4444';
+                setTimeout(() => {
+                    chatName.textContent = originalText;
+                    chatName.style.color = '';
+                }, 2000);
+            }
         }
     }
 
@@ -914,6 +930,20 @@ class TelegramRealtimeMessaging {
                 this.socket.emit('typing', { chatId: this.currentChat.id });
             } else {
                 this.socket.emit('stopTyping', { chatId: this.currentChat.id });
+            }
+        }
+    }
+
+    // Update input state based on conversation selection
+    updateInputState() {
+        const messageInput = document.getElementById('message-input');
+        if (messageInput) {
+            if (this.currentChat) {
+                messageInput.disabled = false;
+                messageInput.placeholder = 'Nhập tin nhắn...';
+            } else {
+                messageInput.disabled = true;
+                messageInput.placeholder = 'Chọn cuộc trò chuyện để bắt đầu...';
             }
         }
     }
