@@ -140,7 +140,14 @@ class TelegramRealtimeMessaging {
             });
 
             if (response.ok) {
-                const conversations = await response.json();
+                const data = await response.json();
+                console.log('📋 API Response:', data);
+                
+                // Handle different response formats
+                const conversations = Array.isArray(data) ? data : 
+                                    (data.conversations && Array.isArray(data.conversations)) ? data.conversations :
+                                    (data.data && Array.isArray(data.data)) ? data.data : [];
+                
                 this.conversations.clear();
                 
                 conversations.forEach(conv => {
@@ -395,7 +402,14 @@ class TelegramRealtimeMessaging {
             });
 
             if (response.ok) {
-                const conversations = await response.json();
+                const data = await response.json();
+                console.log('📋 API Response:', data);
+                
+                // Handle different response formats
+                const conversations = Array.isArray(data) ? data : 
+                                    (data.conversations && Array.isArray(data.conversations)) ? data.conversations :
+                                    (data.data && Array.isArray(data.data)) ? data.data : [];
+                
                 console.log('📋 Loaded conversations:', conversations.length);
                 
                 // Store conversations

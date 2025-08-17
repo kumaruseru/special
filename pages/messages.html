@@ -153,9 +153,30 @@
     </div>
 
     <!-- Third-party Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" onerror="console.warn('Three.js failed to load, 3D background disabled')"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"></script>
     <!-- Custom Script -->
     <script src="../assets/js/messages.js"></script>
+    
+    <!-- Three.js Error Handler -->
+    <script>
+        // Prevent Three.js errors from breaking the messaging system
+        window.addEventListener('error', function(e) {
+            if (e.filename && e.filename.includes('three')) {
+                console.warn('Three.js error caught and ignored:', e.message);
+                e.preventDefault();
+                return false;
+            }
+        });
+        
+        // Catch unhandled promise rejections from Three.js
+        window.addEventListener('unhandledrejection', function(e) {
+            if (e.reason && e.reason.toString().includes('three')) {
+                console.warn('Three.js promise rejection caught and ignored:', e.reason);
+                e.preventDefault();
+                return false;
+            }
+        });
+    </script>
 </body>
 </html>
