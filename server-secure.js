@@ -426,6 +426,7 @@ app.get('/api/debug', (req, res) => {
             'GET /api/debug-production',
             'GET /api/debug-raw',
             'GET /api/users',
+            'GET /api/test-restore',
             'POST /api/restore-name',
             'POST /api/fix-users',
             'GET /api/posts',
@@ -564,6 +565,15 @@ app.get('/api/debug-production', async (req, res) => {
             error: error.message
         });
     }
+});
+
+// Test endpoint
+app.get('/api/test-restore', (req, res) => {
+    res.json({
+        success: true,
+        message: 'Restore endpoint test is working',
+        timestamp: new Date().toISOString()
+    });
 });
 
 // Restore user real name
