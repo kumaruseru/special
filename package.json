@@ -2,7 +2,7 @@
   "name": "space-social-network",
   "version": "1.0.0",
   "description": "A modern space-themed social network application",
-  "main": "index.html",
+  "main": "server-secure.js",
   "scripts": {
     "start": "node server-secure.js",
     "dev": "node server-multi-db.js",
