@@ -325,6 +325,9 @@ class FriendRequestsManager {
     }
 
     async loadFriendRequests() {
+        // Add delay to ensure DOM is stable
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         const loadingState = document.getElementById('loading-state');
         const emptyState = document.getElementById('empty-state');
         const friendRequestsList = document.getElementById('friend-requests-list');
@@ -377,8 +380,11 @@ class FriendRequestsManager {
             this.allRequests = result.friendRequests || [];
             
             // Double check elements still exist before manipulating
-            if (loadingState) {
-                loadingState.style.display = 'none';
+            const currentLoadingState = document.getElementById('loading-state');
+            const currentEmptyState = document.getElementById('empty-state');
+            
+            if (currentLoadingState) {
+                currentLoadingState.style.display = 'none';
             }
             
             // Update counts
@@ -388,11 +394,11 @@ class FriendRequestsManager {
             // Apply current filter
             this.filterAndRenderRequests();
             
-            if (emptyState) {
+            if (currentEmptyState) {
                 if (this.allRequests.length === 0) {
-                    emptyState.classList.remove('hidden');
+                    currentEmptyState.classList.remove('hidden');
                 } else {
-                    emptyState.classList.add('hidden');
+                    currentEmptyState.classList.add('hidden');
                 }
             }
             
@@ -400,20 +406,25 @@ class FriendRequestsManager {
             console.error('Error loading friend requests:', error);
             
             // Check if loadingState still exists before setting innerHTML
-            if (loadingState) {
-                loadingState.innerHTML = `
-                    <div class="glass-pane p-6 rounded-2xl text-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-red-500">
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="12" y1="8" x2="12" y2="12"/>
-                            <line x1="12" y1="16" x2="12.01" y2="16"/>
-                        </svg>
-                        <p class="text-gray-400 mb-2">Lỗi tải dữ liệu: ${error.message}</p>
-                        <button onclick="location.reload()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-colors">
-                            Thử lại
-                        </button>
-                    </div>
-                `;
+            const currentLoadingState = document.getElementById('loading-state');
+            if (currentLoadingState) {
+                try {
+                    currentLoadingState.innerHTML = `
+                        <div class="glass-pane p-6 rounded-2xl text-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-red-500">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="12"/>
+                                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                            <p class="text-gray-400 mb-2">Lỗi tải dữ liệu: ${error.message}</p>
+                            <button onclick="location.reload()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-colors">
+                                Thử lại
+                            </button>
+                        </div>
+                    `;
+                } catch (innerError) {
+                    console.error('Error updating loading state:', innerError);
+                }
             }
         }
     }
@@ -650,9 +661,24 @@ class FriendRequestsManager {
     setup3DBackground() {
         // Simple 3D background similar to discovery page
         try {
+            // Check if Three.js failed to load
+            if (window.THREE_LOAD_FAILED) {
+                console.log('Three.js failed to load, using fallback background');
+                this.setupFallbackBackground();
+                return;
+            }
+            
             // Check if Three.js is available
             if (typeof THREE === 'undefined') {
-                console.log('Three.js not available, skipping 3D background');
+                console.log('Three.js not available, waiting or using fallback');
+                // Wait a bit for Three.js to load, then fallback
+                setTimeout(() => {
+                    if (typeof THREE === 'undefined') {
+                        this.setupFallbackBackground();
+                    } else {
+                        this.setup3DBackground(); // Retry
+                    }
+                }, 2000);
                 return;
             }
 
@@ -769,20 +795,48 @@ class FriendRequestsManager {
                     }
                 });
             } else {
-                console.warn('No star vertices created, skipping stars');
+                console.warn('No star vertices created, using fallback');
+                this.setupFallbackBackground();
             }
             
         } catch (error) {
             console.error('Error setting up 3D background:', error);
-            // Fallback: Just set a simple dark background
-            const canvas = document.getElementById('cosmic-bg');
-            if (canvas) {
+            this.setupFallbackBackground();
+        }
+    }
+
+    setupFallbackBackground() {
+        // Fallback: Just set a simple dark background with CSS
+        const canvas = document.getElementById('cosmic-bg');
+        if (canvas) {
+            try {
                 const ctx = canvas.getContext('2d');
                 if (ctx) {
-                    canvas.width = window.innerWidth;
-                    canvas.height = window.innerHeight;
+                    canvas.width = window.innerWidth || 1920;
+                    canvas.height = window.innerHeight || 1080;
+                    
+                    // Create a simple starfield
                     ctx.fillStyle = '#000011';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Add some simple stars
+                    ctx.fillStyle = '#FFFFFF';
+                    for (let i = 0; i < 100; i++) {
+                        const x = Math.random() * canvas.width;
+                        const y = Math.random() * canvas.height;
+                        const size = Math.random() * 2;
+                        ctx.beginPath();
+                        ctx.arc(x, y, size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
+                    console.log('Fallback 2D background created');
+                }
+            } catch (fallbackError) {
+                console.error('Fallback background error:', fallbackError);
+                // Last resort: just set CSS background
+                if (canvas) {
+                    canvas.style.background = 'linear-gradient(135deg, #000011 0%, #001122 100%)';
                 }
             }
         }
