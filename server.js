@@ -399,8 +399,12 @@ app.post('/api/debug-login', async (req, res) => {
             direct: await bcrypt.compare(password, user.password),
             sha256: false,
             sha256Salt: false,
+            sha256SaltReverse: false,
             doubleBcrypt: false,
-            sha256ThenBcrypt: false
+            sha256ThenBcrypt: false,
+            sha256SaltThenSha256: false,
+            md5Salt: false,
+            pbkdf2: false
         };
         
         // Test SHA256 hash
@@ -412,9 +416,29 @@ app.post('/api/debug-login', async (req, res) => {
             const sha256WithSalt = crypto.createHash('sha256').update(password + user.salt).digest('hex');
             tests.sha256Salt = await bcrypt.compare(sha256WithSalt, user.password);
             
+            // Test salt + password (reverse order)
+            const sha256SaltReverse = crypto.createHash('sha256').update(user.salt + password).digest('hex');
+            tests.sha256SaltReverse = await bcrypt.compare(sha256SaltReverse, user.password);
+            
             // Test SHA256 + salt, then SHA256 again, then bcrypt
             const doubleSha256 = crypto.createHash('sha256').update(sha256WithSalt).digest('hex');
             tests.sha256ThenBcrypt = await bcrypt.compare(doubleSha256, user.password);
+            
+            // Test SHA256(password + salt) then SHA256 again
+            const sha256SaltThenSha256 = crypto.createHash('sha256').update(sha256WithSalt).digest('hex');
+            tests.sha256SaltThenSha256 = await bcrypt.compare(sha256SaltThenSha256, user.password);
+            
+            // Test MD5 with salt
+            const md5WithSalt = crypto.createHash('md5').update(password + user.salt).digest('hex');
+            tests.md5Salt = await bcrypt.compare(md5WithSalt, user.password);
+            
+            // Test PBKDF2
+            try {
+                const pbkdf2Hash = crypto.pbkdf2Sync(password, user.salt, 1000, 32, 'sha256').toString('hex');
+                tests.pbkdf2 = await bcrypt.compare(pbkdf2Hash, user.password);
+            } catch (e) {
+                tests.pbkdf2 = 'error';
+            }
         }
         
         // Test if password is double bcrypt
