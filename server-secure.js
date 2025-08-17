@@ -322,6 +322,111 @@ connectToDatabase().catch(error => {
 });
 
 // === AUTHENTICATION ROUTES ===
+
+// Get salt for password hashing
+app.post('/api/get-salt', async (req, res) => {
+    try {
+        const { email } = req.body;
+        
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required'
+            });
+        }
+        
+        // Find user by email
+        const user = await User.findOne({ email });
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+        
+        // Return salt (first part of hashed password)
+        const salt = user.password.split('$')[0] + '$' + user.password.split('$')[1] + '$' + user.password.split('$')[2] + '$';
+        
+        res.json({
+            success: true,
+            salt: salt
+        });
+        
+    } catch (error) {
+        console.error('Error getting salt:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+});
+
+// Login endpoint
+app.post('/api/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and password are required'
+            });
+        }
+        
+        // Find user by email
+        const user = await User.findOne({ email });
+        
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password'
+            });
+        }
+        
+        // Check password
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        
+        if (!isValidPassword) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password'
+            });
+        }
+        
+        // Generate JWT token
+        const token = jwt.sign(
+            { 
+                userId: user._id,
+                email: user.email,
+                fullName: user.fullName
+            },
+            config.jwtSecret,
+            { expiresIn: '7d' }
+        );
+        
+        res.json({
+            success: true,
+            message: 'Login successful',
+            token: token,
+            user: {
+                id: user._id,
+                email: user.email,
+                fullName: user.fullName,
+                username: user.username,
+                avatar: user.avatar
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error during login:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+});
+
 app.post('/api/register', async (req, res) => {
     console.log('Registration API called');
     console.log('Request body:', req.body);
@@ -426,6 +531,8 @@ app.get('/api/debug', (req, res) => {
             'GET /api/debug-production',
             'GET /api/debug-raw',
             'GET /api/users',
+            'POST /api/get-salt',
+            'POST /api/login',
             'GET /api/test-restore',
             'POST /api/restore-name',
             'POST /api/fix-users',
