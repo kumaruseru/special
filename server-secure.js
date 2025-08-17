@@ -38,6 +38,10 @@ console.log('Configuration loaded:', {
 
 console.log('Creating Express app...');
 const app = express();
+
+// Trust proxy for production deployment (fixes rate limiting with reverse proxy)
+app.set('trust proxy', 1);
+
 console.log('Creating HTTP server...');
 const server = http.createServer(app);
 
