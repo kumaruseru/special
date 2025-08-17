@@ -172,6 +172,7 @@ console.log('Creating database models...');
 const UserSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    salt: { type: String }, // For custom password hashing
     fullName: { type: String, required: true },
     username: { type: String, unique: true, sparse: true },
     avatar: { type: String },
@@ -420,6 +421,126 @@ app.post('/api/login', async (req, res) => {
         
     } catch (error) {
         console.error('Error during login:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+});
+
+// Get salt endpoint for secure password hashing
+app.post('/api/get-salt', async (req, res) => {
+    try {
+        const { email } = req.body;
+        
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required'
+            });
+        }
+        
+        // Find user to get their stored salt (if any)
+        const user = await User.findOne({ email: email.toLowerCase() });
+        
+        if (user && user.salt) {
+            // Return existing salt for this user
+            res.json({
+                success: true,
+                salt: user.salt
+            });
+        } else {
+            // Generate a new salt for new user or fallback
+            const salt = await bcrypt.genSalt(12);
+            
+            res.json({
+                success: true,
+                salt: salt
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Error getting salt:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+});
+
+// Login endpoint
+app.post('/api/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and password are required'
+            });
+        }
+        
+        console.log('🔐 Login attempt for:', email);
+        
+        // Find user by email
+        const user = await User.findOne({ email: email.toLowerCase() });
+        
+        if (!user) {
+            console.log('❌ User not found:', email);
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid credentials'
+            });
+        }
+        
+        let isValidPassword = false;
+        
+        // Check if password looks like SHA256 hash (64 characters, hex)
+        if (password.length === 64 && /^[a-f0-9]+$/i.test(password)) {
+            // Frontend sent hashed password - compare directly
+            console.log('🔍 Comparing hashed passwords...');
+            isValidPassword = (user.password === password);
+        } else {
+            // Traditional bcrypt comparison (fallback for plain passwords)
+            console.log('🔍 Using bcrypt comparison...');
+            isValidPassword = await bcrypt.compare(password, user.password);
+        }
+        
+        if (!isValidPassword) {
+            console.log('❌ Invalid password for:', email);
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid credentials'
+            });
+        }
+        
+        console.log('✅ Login successful for:', email);
+        
+        // Generate JWT token
+        const token = jwt.sign(
+            { 
+                userId: user._id,
+                email: user.email,
+                fullName: user.fullName
+            },
+            config.jwtSecret,
+            { expiresIn: '24h' }
+        );
+        
+        res.json({
+            success: true,
+            message: 'Login successful',
+            token: token,
+            user: {
+                id: user._id,
+                email: user.email,
+                fullName: user.fullName,
+                avatar: user.avatar
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Login error:', error);
         res.status(500).json({
             success: false,
             message: 'Internal server error'
