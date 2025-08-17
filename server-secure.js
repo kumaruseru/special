@@ -426,6 +426,7 @@ app.get('/api/debug', (req, res) => {
             'GET /api/debug-production',
             'GET /api/debug-raw',
             'GET /api/users',
+            'POST /api/restore-name',
             'POST /api/fix-users',
             'GET /api/posts',
             'POST /api/register',
