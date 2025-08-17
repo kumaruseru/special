@@ -418,11 +418,74 @@ app.get('/api/debug', (req, res) => {
         timestamp: new Date().toISOString(),
         endpoints: [
             'GET /api/debug',
+            'GET /api/users',
             'GET /api/posts',
             'POST /api/register',
             'GET /health'
         ]
     });
+});
+
+// Users API endpoint for discovery
+app.get('/api/users', async (req, res) => {
+    console.log('👥 Users API called with:', req.query);
+    logger.info('Users API accessed', { query: req.query, ip: req.ip });
+    
+    try {
+        const limit = parseInt(req.query.limit) || 10;
+        const filter = req.query.filter || 'all';
+        
+        console.log('📊 User query params:', { limit, filter });
+
+        // Get users from database (exclude current user if authenticated)
+        let query = {};
+        
+        // If we have authentication, we could exclude current user
+        // For now, just get public users
+        
+        const totalUsers = await User.countDocuments(query);
+        console.log('📈 Total users found:', totalUsers);
+
+        const users = await User.find(query)
+            .select('fullName email username avatar bio location isVerified createdAt') // Don't return sensitive data
+            .sort({ createdAt: -1 }) // Newest first
+            .limit(limit)
+            .lean();
+
+        console.log('👥 Users fetched:', users.length);
+
+        // Format users for frontend
+        const formattedUsers = users.map(user => ({
+            id: user._id.toString(),
+            name: user.fullName || user.username || 'Anonymous User',
+            username: user.username || user.email?.split('@')[0] || 'user',
+            email: user.email || 'user@space.com',
+            avatar: user.avatar || `https://placehold.co/64x64/4F46E5/FFFFFF?text=${(user.fullName || 'U').charAt(0).toUpperCase()}`,
+            bio: user.bio || 'Space explorer 🚀',
+            location: user.location || 'Unknown Galaxy',
+            isVerified: user.isVerified || false,
+            joinedAt: user.createdAt
+        }));
+
+        console.log('✅ Sending response with', formattedUsers.length, 'users');
+
+        res.json({
+            success: true,
+            users: formattedUsers,
+            total: totalUsers,
+            limit: limit,
+            filter: filter
+        });
+
+    } catch (error) {
+        console.error('❌ Users API error:', error);
+        logger.error('Users API error', { error: error.message, stack: error.stack });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to load users',
+            error: error.message
+        });
+    }
 });
 
 // Posts API endpoint
