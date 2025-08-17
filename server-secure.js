@@ -419,6 +419,8 @@ app.get('/api/debug', (req, res) => {
         endpoints: [
             'GET /api/debug',
             'GET /api/debug-users',
+            'GET /api/debug-production',
+            'GET /api/debug-raw',
             'GET /api/users',
             'POST /api/fix-users',
             'GET /api/posts',
@@ -426,6 +428,33 @@ app.get('/api/debug', (req, res) => {
             'GET /health'
         ]
     });
+});
+
+// Simple debug endpoint to see raw user data
+app.get('/api/debug-raw', async (req, res) => {
+    try {
+        const users = await User.find({}).lean();
+        res.json({
+            success: true,
+            count: users.length,
+            rawUsers: users.map(user => ({
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                fullName: user.fullName,
+                displayName: user.displayName,
+                name: user.name,
+                originalFields: Object.keys(user)
+            }))
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
 });
 
 // Users API endpoint for discovery
