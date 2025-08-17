@@ -329,6 +329,12 @@ class FriendRequestsManager {
         const emptyState = document.getElementById('empty-state');
         const friendRequestsList = document.getElementById('friend-requests-list');
         
+        // Check if we're still on the right page (elements exist)
+        if (!loadingState || !emptyState || !friendRequestsList) {
+            console.log('Friend requests elements not found - user may have navigated away');
+            return;
+        }
+        
         try {
             const token = localStorage.getItem('token') || localStorage.getItem('authToken');
             console.log('=== FRIEND REQUESTS DEBUG ===');
@@ -370,8 +376,10 @@ class FriendRequestsManager {
             console.log('Friend requests result:', result);
             this.allRequests = result.friendRequests || [];
             
-            // Hide loading state
-            loadingState.style.display = 'none';
+            // Double check elements still exist before manipulating
+            if (loadingState) {
+                loadingState.style.display = 'none';
+            }
             
             // Update counts
             this.updateRequestCounts(result.count || 0);
@@ -380,27 +388,33 @@ class FriendRequestsManager {
             // Apply current filter
             this.filterAndRenderRequests();
             
-            if (this.allRequests.length === 0) {
-                emptyState.classList.remove('hidden');
-            } else {
-                emptyState.classList.add('hidden');
+            if (emptyState) {
+                if (this.allRequests.length === 0) {
+                    emptyState.classList.remove('hidden');
+                } else {
+                    emptyState.classList.add('hidden');
+                }
             }
             
         } catch (error) {
             console.error('Error loading friend requests:', error);
-            loadingState.innerHTML = `
-                <div class="glass-pane p-6 rounded-2xl text-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-red-500">
-                        <circle cx="12" cy="12" r="10"/>
-                        <line x1="12" y1="8" x2="12" y2="12"/>
-                        <line x1="12" y1="16" x2="12.01" y2="16"/>
-                    </svg>
-                    <p class="text-gray-400 mb-2">Lỗi tải dữ liệu: ${error.message}</p>
-                    <button onclick="location.reload()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-colors">
-                        Thử lại
-                    </button>
-                </div>
-            `;
+            
+            // Check if loadingState still exists before setting innerHTML
+            if (loadingState) {
+                loadingState.innerHTML = `
+                    <div class="glass-pane p-6 rounded-2xl text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-red-500">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        <p class="text-gray-400 mb-2">Lỗi tải dữ liệu: ${error.message}</p>
+                        <button onclick="location.reload()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-colors">
+                            Thử lại
+                        </button>
+                    </div>
+                `;
+            }
         }
     }
 
@@ -436,6 +450,12 @@ class FriendRequestsManager {
 
     renderFriendRequests() {
         const friendRequestsList = document.getElementById('friend-requests-list');
+        
+        // Check if element exists
+        if (!friendRequestsList) {
+            console.log('friendRequestsList element not found - user may have navigated away');
+            return;
+        }
         
         if (this.friendRequests.length === 0) {
             friendRequestsList.innerHTML = `
@@ -606,10 +626,25 @@ class FriendRequestsManager {
     }
 
     setupAutoRefresh() {
-        // Refresh every 30 seconds
-        setInterval(() => {
-            this.loadFriendRequests();
+        // Refresh every 30 seconds, but only if still on friend-requests page
+        this.refreshInterval = setInterval(() => {
+            // Check if we're still on the friend-requests page
+            const friendRequestsList = document.getElementById('friend-requests-list');
+            if (friendRequestsList && document.location.pathname.includes('friend-requests')) {
+                this.loadFriendRequests();
+            } else {
+                // Clear interval if user navigated away
+                console.log('User navigated away from friend-requests, clearing auto-refresh');
+                clearInterval(this.refreshInterval);
+            }
         }, 30000);
+        
+        // Also clear interval on page unload
+        window.addEventListener('beforeunload', () => {
+            if (this.refreshInterval) {
+                clearInterval(this.refreshInterval);
+            }
+        });
     }
 
     setup3DBackground() {
