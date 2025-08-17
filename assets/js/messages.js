@@ -399,7 +399,7 @@ class TelegramRealtimeMessaging {
         try {
             const response = await fetch('/api/profile/me', {
                 headers: {
-                    'Authorization': `Bearer ${this.auth.token}`,
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     'Content-Type': 'application/json'
                 }
             });
@@ -458,7 +458,7 @@ class TelegramRealtimeMessaging {
         try {
             const response = await fetch('/api/conversations', {
                 headers: {
-                    'Authorization': `Bearer ${this.auth.token}`,
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     'Content-Type': 'application/json'
                 }
             });
