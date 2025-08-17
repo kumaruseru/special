@@ -184,13 +184,23 @@ function initLoginForm() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Store login state
+                    console.log('Login successful, user data:', data.user);
+                    
+                    // Store login state with multiple keys for compatibility
                     localStorage.setItem('isLoggedIn', 'true');
                     localStorage.setItem('userEmail', data.user.email);
-                    localStorage.setItem('userName', data.user.fullName);
+                    localStorage.setItem('userName', data.user.fullName || data.user.name || `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim());
+                    localStorage.setItem('fullName', data.user.fullName || data.user.name || `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim());
                     localStorage.setItem('token', data.token); // Use consistent key 'token'
                     localStorage.setItem('authToken', data.token); // Keep for backward compatibility
-                    localStorage.setItem('userData', JSON.stringify(data.user));
+                    localStorage.setItem('userData', JSON.stringify(data.user)); // Legacy key
+                    localStorage.setItem('userInfo', JSON.stringify(data.user)); // New consistent key
+                    
+                    console.log('Stored user data:', {
+                        userName: localStorage.getItem('userName'),
+                        fullName: localStorage.getItem('fullName'),
+                        userEmail: localStorage.getItem('userEmail')
+                    });
                     
                     if (rememberCheckbox.checked) {
                         localStorage.setItem('rememberMe', 'true');
