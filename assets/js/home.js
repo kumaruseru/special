@@ -1,3 +1,22 @@
+// Global error handler for catching unhandled promise rejections and errors
+window.addEventListener('error', (event) => {
+    console.error('🚨 Global error caught:', event.error);
+    // Don't throw to console for third-party library errors
+    if (event.filename && event.filename.includes('index.global.js')) {
+        console.warn('⚠️ TailwindCSS library error (non-critical):', event.error);
+        return true; // Prevent default error handling
+    }
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('🚨 Unhandled promise rejection:', event.reason);
+    // Prevent error from being logged to console for known third-party errors
+    if (event.reason && event.reason.stack && event.reason.stack.includes('index.global.js')) {
+        console.warn('⚠️ TailwindCSS promise rejection (non-critical):', event.reason);
+        event.preventDefault();
+    }
+});
+
 // --- Page Navigation and Popup Logic ---
 document.addEventListener('DOMContentLoaded', () => {
     const mainNav = document.getElementById('main-nav');
@@ -991,7 +1010,7 @@ function updateUserInfo() {
     });
     
     userEmailElements.forEach(element => {
-        if (element.textContent.includes('@alexstarr')) {
+        if (element.textContent.includes('@alexstarr') && userEmail && userEmail.includes('@')) {
             element.textContent = '@' + userEmail.split('@')[0];
         }
     });
@@ -1190,7 +1209,11 @@ const loadUserProfile = async () => {
 
             // Update profile UI
             document.getElementById('profile-name').textContent = `${user.firstName} ${user.lastName}`;
-            document.getElementById('profile-email').textContent = `@${user.email.split('@')[0]}`;
+            if (user.email && user.email.includes('@')) {
+                document.getElementById('profile-email').textContent = `@${user.email.split('@')[0]}`;
+            } else {
+                document.getElementById('profile-email').textContent = '@user';
+            }
             
             const avatar = user.avatar || `https://placehold.co/96x96/4F46E5/FFFFFF?text=${user.firstName.charAt(0)}${user.lastName.charAt(0)}`;
             document.getElementById('profile-avatar').src = avatar;
