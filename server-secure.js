@@ -149,9 +149,19 @@ async function connectDatabase() {
     }
 }
 
-// Start database connection
+// Start database connection and then server
 console.log('Calling connectDatabase()...');
-connectDatabase();
+
+// Start server after database connection
+async function startServer() {
+    try {
+        const dbConnected = await connectDatabase();
+        if (!dbConnected) {
+            console.error('❌ Failed to connect to database, cannot start server');
+            process.exit(1);
+        }
+
+        console.log('✅ Database connected, proceeding with server startup...');
 
 console.log('Creating database models...');
 // Database Models
@@ -408,11 +418,84 @@ app.get('/api/debug', (req, res) => {
         timestamp: new Date().toISOString(),
         endpoints: [
             'GET /api/debug',
+            'GET /api/users',
             'GET /api/posts',
             'POST /api/register',
             'GET /health'
         ]
     });
+});
+
+// Users API endpoint for discovery
+app.get('/api/users', async (req, res) => {
+    console.log('👥 Users API called with:', req.query);
+    logger.info('Users API accessed', { query: req.query, ip: req.ip });
+    
+    try {
+        const limit = parseInt(req.query.limit) || 10;
+        const filter = req.query.filter || 'all';
+        
+        console.log('📊 User query params:', { limit, filter });
+
+        // Get users from database (exclude current user if authenticated)
+        let query = {};
+        
+        // If we have authentication, we could exclude current user
+        // For now, just get public users
+        
+        const totalUsers = await User.countDocuments(query);
+        console.log('📈 Total users found:', totalUsers);
+
+        const users = await User.find(query)
+            .select('fullName email username avatar bio location isVerified createdAt') // Don't return sensitive data
+            .sort({ createdAt: -1 }) // Newest first
+            .limit(limit)
+            .lean();
+
+        console.log('👥 Users fetched:', users.length);
+        console.log('📊 Sample user data:', users[0]); // Debug first user
+
+        // Format users for frontend
+        const formattedUsers = users.map((user, index) => {
+            console.log(`🔍 User ${index + 1}:`, {
+                fullName: user.fullName,
+                username: user.username,
+                email: user.email,
+                _id: user._id
+            });
+            
+            return {
+                id: user._id.toString(),
+                name: user.fullName || user.username || `User ${user._id.toString().slice(-4)}`,
+                username: user.username || user.email?.split('@')[0] || 'user',
+                email: user.email || 'user@space.com',
+                avatar: user.avatar || `https://placehold.co/64x64/4F46E5/FFFFFF?text=${(user.fullName || user.username || 'U').charAt(0).toUpperCase()}`,
+                bio: user.bio || 'Space explorer 🚀',
+                location: user.location || 'Unknown Galaxy',
+                isVerified: user.isVerified || false,
+                joinedAt: user.createdAt
+            };
+        });
+
+        console.log('✅ Sending response with', formattedUsers.length, 'users');
+
+        res.json({
+            success: true,
+            users: formattedUsers,
+            total: totalUsers,
+            limit: limit,
+            filter: filter
+        });
+
+    } catch (error) {
+        console.error('❌ Users API error:', error);
+        logger.error('Users API error', { error: error.message, stack: error.stack });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to load users',
+            error: error.message
+        });
+    }
 });
 
 // Posts API endpoint
@@ -535,18 +618,44 @@ app.use('*', (req, res) => {
     });
 });
 
-console.log('All setup completed, starting server...');
-// Start server
-const PORT = config.port;
-console.log(`Attempting to listen on port ${PORT}...`);
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server listening on port ${PORT}!`);
-    logger.info('Server started successfully', {
-        port: PORT,
-        environment: config.nodeEnv,
-        features: config.features,
-        pid: process.pid
-    });
-});
+        console.log('All setup completed, starting server...');
+        // Start server
+        const PORT = config.port;
+        console.log(`🔍 Environment Debug:`);
+        console.log(`- NODE_ENV: ${process.env.NODE_ENV}`);
+        console.log(`- PORT env: ${process.env.PORT}`);
+        console.log(`- Computed PORT: ${PORT}`);
+        console.log(`- Config port: ${config.port}`);
+
+        console.log(`Attempting to listen on port ${PORT}...`);
+        server.listen(PORT, '0.0.0.0', (error) => {
+            if (error) {
+                console.error('❌ Server failed to start:', error);
+                logger.error('Server startup failed', { error: error.message });
+                process.exit(1);
+            }
+            
+            console.log(`✅ Server listening on port ${PORT}!`);
+            console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+            console.log(`🔗 API debug: http://localhost:${PORT}/api/debug`);
+            console.log(`🔗 Posts API: http://localhost:${PORT}/api/posts`);
+            
+            logger.info('Server started successfully', {
+                port: PORT,
+                environment: config.nodeEnv,
+                features: config.features,
+                pid: process.pid
+            });
+        });
+
+    } catch (error) {
+        console.error('❌ Failed to start server:', error);
+        logger.error('Server startup error', { error: error.message });
+        process.exit(1);
+    }
+}
+
+// Start the application
+startServer();
 
 module.exports = { app, server, io, mongoose, logger, config };
