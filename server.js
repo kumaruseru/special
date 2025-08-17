@@ -38,6 +38,10 @@ console.log('Configuration loaded:', {
 
 console.log('Creating Express app...');
 const app = express();
+
+// Trust proxy for production deployment (fixes rate limiting with reverse proxy)
+app.set('trust proxy', 1);
+
 console.log('Creating HTTP server...');
 const server = http.createServer(app);
 
@@ -168,6 +172,7 @@ console.log('Creating database models...');
 const UserSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    salt: { type: String }, // For custom password hashing
     fullName: { type: String, required: true },
     username: { type: String, unique: true, sparse: true },
     avatar: { type: String },
@@ -318,6 +323,231 @@ connectToDatabase().catch(error => {
 });
 
 // === AUTHENTICATION ROUTES ===
+
+// Get salt for password hashing
+app.post('/api/get-salt', async (req, res) => {
+    try {
+        const { email } = req.body;
+        
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required'
+            });
+        }
+        
+        // Find user by email
+        const user = await User.findOne({ email });
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+        
+        // Return salt (first part of hashed password)
+        const salt = user.password.split('$')[0] + '$' + user.password.split('$')[1] + '$' + user.password.split('$')[2] + '$';
+        
+        res.json({
+            success: true,
+            salt: salt
+        });
+        
+    } catch (error) {
+        console.error('Error getting salt:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+});
+
+// Login endpoint
+app.post('/api/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and password are required'
+            });
+        }
+        
+        // Find user by email
+        const user = await User.findOne({ email });
+        
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password'
+            });
+        }
+        
+        // Check password
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        
+        if (!isValidPassword) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password'
+            });
+        }
+        
+        // Generate JWT token
+        const token = jwt.sign(
+            { 
+                userId: user._id,
+                email: user.email,
+                fullName: user.fullName
+            },
+            config.jwtSecret,
+            { expiresIn: '7d' }
+        );
+        
+        res.json({
+            success: true,
+            message: 'Login successful',
+            token: token,
+            user: {
+                id: user._id,
+                email: user.email,
+                fullName: user.fullName,
+                username: user.username,
+                avatar: user.avatar
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error during login:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+});
+
+// Get salt endpoint for secure password hashing
+app.post('/api/get-salt', async (req, res) => {
+    try {
+        const { email } = req.body;
+        
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required'
+            });
+        }
+        
+        // Find user to get their stored salt (if any)
+        const user = await User.findOne({ email: email.toLowerCase() });
+        
+        if (user && user.salt) {
+            // Return existing salt for this user
+            res.json({
+                success: true,
+                salt: user.salt
+            });
+        } else {
+            // Generate a new salt for new user or fallback
+            const salt = await bcrypt.genSalt(12);
+            
+            res.json({
+                success: true,
+                salt: salt
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Error getting salt:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+});
+
+// Login endpoint
+app.post('/api/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and password are required'
+            });
+        }
+        
+        console.log('🔐 Login attempt for:', email);
+        
+        // Find user by email
+        const user = await User.findOne({ email: email.toLowerCase() });
+        
+        if (!user) {
+            console.log('❌ User not found:', email);
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid credentials'
+            });
+        }
+        
+        let isValidPassword = false;
+        
+        // Check if password looks like SHA256 hash (64 characters, hex)
+        if (password.length === 64 && /^[a-f0-9]+$/i.test(password)) {
+            // Frontend sent hashed password - compare directly
+            console.log('🔍 Comparing hashed passwords...');
+            isValidPassword = (user.password === password);
+        } else {
+            // Traditional bcrypt comparison (fallback for plain passwords)
+            console.log('🔍 Using bcrypt comparison...');
+            isValidPassword = await bcrypt.compare(password, user.password);
+        }
+        
+        if (!isValidPassword) {
+            console.log('❌ Invalid password for:', email);
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid credentials'
+            });
+        }
+        
+        console.log('✅ Login successful for:', email);
+        
+        // Generate JWT token
+        const token = jwt.sign(
+            { 
+                userId: user._id,
+                email: user.email,
+                fullName: user.fullName
+            },
+            config.jwtSecret,
+            { expiresIn: '24h' }
+        );
+        
+        res.json({
+            success: true,
+            message: 'Login successful',
+            token: token,
+            user: {
+                id: user._id,
+                email: user.email,
+                fullName: user.fullName,
+                avatar: user.avatar
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Login error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+});
+
 app.post('/api/register', async (req, res) => {
     console.log('Registration API called');
     console.log('Request body:', req.body);
@@ -416,9 +646,17 @@ app.get('/api/debug', (req, res) => {
         success: true,
         message: 'API is working',
         timestamp: new Date().toISOString(),
+        version: '2.0', // Updated version to confirm deployment
         endpoints: [
             'GET /api/debug',
+            'GET /api/debug-users',
+            'GET /api/debug-production',
+            'GET /api/debug-raw',
             'GET /api/users',
+            'POST /api/get-salt',
+            'POST /api/login',
+            'GET /api/test-restore',
+            'POST /api/restore-name',
             'POST /api/fix-users',
             'GET /api/posts',
             'POST /api/register',
@@ -427,60 +665,236 @@ app.get('/api/debug', (req, res) => {
     });
 });
 
-// Users API endpoint for discovery
-// Fix users with missing fullName
-app.post('/api/fix-users', async (req, res) => {
+// Simple debug endpoint to see raw user data
+app.get('/api/debug-raw', async (req, res) => {
     try {
-        console.log('🔧 Starting user data fix...');
+        const users = await User.find({}).lean();
+        res.json({
+            success: true,
+            count: users.length,
+            rawUsers: users.map(user => ({
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                fullName: user.fullName,
+                displayName: user.displayName,
+                name: user.name,
+                originalFields: Object.keys(user)
+            }))
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Users API endpoint for discovery
+// Debug endpoint to see all user fields in database
+app.get('/api/debug-users', async (req, res) => {
+    try {
+        console.log('🔍 Debug: Getting all user data from database...');
         
-        // Find users without fullName or with generic names
-        const usersToFix = await User.find({
-            $or: [
-                { fullName: { $exists: false } },
-                { fullName: null },
-                { fullName: '' }
-            ]
+        const users = await User.find({}).lean();
+        
+        console.log(`📊 Found ${users.length} users in database`);
+        users.forEach((user, index) => {
+            console.log(`\n👤 User ${index + 1}:`, {
+                _id: user._id,
+                email: user.email,
+                username: user.username,
+                fullName: user.fullName,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                name: user.name,
+                displayName: user.displayName,
+                // Show all fields
+                allFields: Object.keys(user)
+            });
         });
 
-        console.log(`📊 Found ${usersToFix.length} users to fix`);
+        res.json({
+            success: true,
+            users: users.map(user => ({
+                _id: user._id,
+                email: user.email,
+                username: user.username,
+                fullName: user.fullName,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                name: user.name,
+                displayName: user.displayName,
+                allFields: Object.keys(user)
+            })),
+            total: users.length
+        });
 
-        let fixedCount = 0;
-        for (const user of usersToFix) {
-            // Extract first name from email or use username
-            let newFullName = user.username;
-            if (user.email) {
-                const emailPart = user.email.split('@')[0];
-                // Convert email username to a readable name
-                newFullName = emailPart.replace(/[0-9]/g, '').replace(/[._-]/g, ' ');
-                newFullName = newFullName.split(' ')
-                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                    .join(' ');
-            }
+    } catch (error) {
+        console.error('❌ Error getting debug user data:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error getting debug user data',
+            error: error.message
+        });
+    }
+});
 
-            if (!newFullName || newFullName.trim() === '') {
-                newFullName = `User ${user._id.toString().slice(-4)}`;
-            }
+// Debug production users - show raw data
+app.get('/api/debug-production', async (req, res) => {
+    try {
+        console.log('🔍 Debug: Getting production user data...');
+        
+        const users = await User.find({})
+            .select('fullName email username createdAt firstName lastName name displayName')
+            .lean();
 
-            await User.findByIdAndUpdate(user._id, {
-                fullName: newFullName,
-                avatar: `https://placehold.co/150x150/4F46E5/FFFFFF?text=${newFullName.charAt(0).toUpperCase()}`
+        console.log(`📊 Found ${users.length} users in production`);
+        
+        for (let i = 0; i < users.length; i++) {
+            const user = users[i];
+            console.log(`👤 Production User ${i + 1}:`, {
+                _id: user._id,
+                email: user.email,
+                username: user.username,
+                fullName: user.fullName,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                name: user.name,
+                displayName: user.displayName,
+                createdAt: user.createdAt,
+                allFields: Object.keys(user)
             });
-
-            console.log(`✅ Fixed user ${user._id}: ${user.email} -> ${newFullName}`);
-            fixedCount++;
         }
 
         res.json({
             success: true,
-            message: `Fixed ${fixedCount} users`,
-            fixedCount
+            users: users.map(user => ({
+                _id: user._id,
+                email: user.email,
+                username: user.username,
+                fullName: user.fullName,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                name: user.name,
+                displayName: user.displayName,
+                createdAt: user.createdAt,
+                allFields: Object.keys(user)
+            })),
+            total: users.length
         });
 
     } catch (error) {
-        console.error('❌ Error fixing users:', error);
+        console.error('❌ Error getting production data:', error);
         res.status(500).json({
             success: false,
-            message: 'Error fixing users',
+            message: 'Error getting production data',
+            error: error.message
+        });
+    }
+});
+
+// Test endpoint
+app.get('/api/test-restore', (req, res) => {
+    res.json({
+        success: true,
+        message: 'Restore endpoint test is working',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Restore user real name
+app.post('/api/restore-name', async (req, res) => {
+    try {
+        const { userId, fullName, firstName, lastName } = req.body;
+        
+        console.log('🔧 Restoring user name:', { userId, fullName, firstName, lastName });
+        
+        if (!userId || !fullName) {
+            return res.status(400).json({
+                success: false,
+                message: 'userId and fullName are required'
+            });
+        }
+
+        // Update user with real name
+        const updatedUser = await User.findByIdAndUpdate(userId, {
+            fullName,
+            firstName: firstName || fullName.split(' ')[0],
+            lastName: lastName || fullName.split(' ').slice(1).join(' '),
+            avatar: `https://placehold.co/150x150/4F46E5/FFFFFF?text=${fullName.charAt(0).toUpperCase()}`
+        }, { new: true });
+
+        if (!updatedUser) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        console.log('✅ User name restored:', updatedUser.fullName);
+
+        res.json({
+            success: true,
+            message: `Name restored to: ${fullName}`,
+            user: {
+                id: updatedUser._id,
+                fullName: updatedUser.fullName,
+                firstName: updatedUser.firstName,
+                lastName: updatedUser.lastName
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Error restoring user name:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error restoring user name',
+            error: error.message
+        });
+    }
+});
+
+// Fix users with missing fullName
+app.post('/api/fix-users', async (req, res) => {
+    try {
+        console.log('🔧 Starting user data inspection...');
+        
+        // Get all users to inspect their current state
+        const allUsers = await User.find({}).lean();
+        console.log(`📊 Found ${allUsers.length} users in database`);
+
+        const userDetails = allUsers.map(user => {
+            const fields = Object.keys(user);
+            return {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                firstName: user.firstName || 'NOT_SET',
+                lastName: user.lastName || 'NOT_SET', 
+                fullName: user.fullName || 'NOT_SET',
+                name: user.name || 'NOT_SET',
+                availableFields: fields,
+                createdAt: user.createdAt || 'NOT_SET',
+                joinedAt: user.joinedAt || 'NOT_SET'
+            };
+        });
+
+        res.json({
+            success: true,
+            message: 'User data inspection completed',
+            totalUsers: allUsers.length,
+            users: userDetails,
+            note: 'Showing all available user data fields'
+        });
+
+    } catch (error) {
+        console.error('❌ Error inspecting users:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error inspecting users',
             error: error.message
         });
     }
