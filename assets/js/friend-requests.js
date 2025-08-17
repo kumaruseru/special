@@ -19,7 +19,8 @@ class FriendRequestsManager {
         await this.checkAuth();
         
         if (!this.currentUser) {
-            this.redirectToLogin();
+            console.log('No authenticated user, showing login prompt instead of redirect');
+            this.showLoginPrompt();
             return;
         }
         
@@ -147,6 +148,61 @@ class FriendRequestsManager {
         window.location.href = 'login.html';
     }
 
+    showLoginPrompt() {
+        const loadingState = document.getElementById('loading-state');
+        const emptyState = document.getElementById('empty-state');
+        const friendRequestsList = document.getElementById('friend-requests-list');
+        
+        // Hide loading state
+        if (loadingState) loadingState.style.display = 'none';
+        if (emptyState) emptyState.classList.add('hidden');
+        
+        // Show login prompt
+        if (friendRequestsList) {
+            friendRequestsList.innerHTML = `
+                <div class="glass-pane p-8 rounded-2xl text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-yellow-500">
+                        <path d="M9 12l2 2 4-4"/>
+                        <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"/>
+                        <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3"/>
+                        <path d="M15 21v-6c0-1.1-.9-2-2-2H9c-1.1 0-2 .9-2 2v6"/>
+                    </svg>
+                    <h3 class="text-lg font-semibold mb-2 text-white">Cần đăng nhập</h3>
+                    <p class="text-gray-400 mb-4">Bạn cần đăng nhập để xem lời mời kết bạn</p>
+                    <div class="flex gap-4 justify-center">
+                        <a href="login.html" class="inline-block px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-colors">
+                            Đăng nhập
+                        </a>
+                        <a href="register.html" class="inline-block px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold transition-colors">
+                            Đăng ký
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Setup basic user info placeholder
+        const userName = document.getElementById('user-name');
+        const userEmail = document.getElementById('user-email');
+        const userAvatar = document.getElementById('user-avatar');
+        
+        if (userName) userName.textContent = 'Khách';
+        if (userEmail) userEmail.textContent = '@guest';
+        if (userAvatar) userAvatar.src = 'https://placehold.co/48x48/4F46E5/FFFFFF?text=K';
+        
+        // Setup 3D background
+        this.setup3DBackground();
+        
+        // Setup basic event listeners  
+        const logoutBtn = document.querySelector('.logout-button');
+        if (logoutBtn) {
+            logoutBtn.textContent = 'Đăng nhập';
+            logoutBtn.addEventListener('click', () => {
+                window.location.href = 'login.html';
+            });
+        }
+    }
+
     async loadFriendRequests() {
         const loadingState = document.getElementById('loading-state');
         const emptyState = document.getElementById('empty-state');
@@ -160,8 +216,8 @@ class FriendRequestsManager {
             console.log('API URL:', `${this.apiBaseUrl}/friend-requests`);
             
             if (!token) {
-                console.log('No token found, redirecting to login');
-                this.redirectToLogin();
+                console.log('No token found, showing login prompt instead of redirect');
+                this.showLoginPrompt();
                 return;
             }
             

@@ -1420,6 +1420,110 @@ const authenticateToken = async (req, res, next) => {
     }
 };
 
+// === USER PROFILE ENDPOINTS ===
+
+// Get current user profile (for authentication check)
+app.get('/api/profile/me', authenticateToken, async (req, res) => {
+    try {
+        console.log('👤 Getting profile for user:', req.user._id);
+        
+        const user = await User.findById(req.user._id).select('-password -salt');
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            user: {
+                id: user._id,
+                email: user.email,
+                username: user.username,
+                fullName: user.fullName,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                name: user.name,
+                avatar: user.avatar || `https://placehold.co/150x150/4F46E5/FFFFFF?text=${(user.fullName || user.name || 'U').charAt(0).toUpperCase()}`,
+                bio: user.bio,
+                location: user.location,
+                isVerified: user.isVerified,
+                createdAt: user.createdAt
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Profile fetch error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+});
+
+// Get user profile (legacy endpoint)
+app.get('/api/profile', authenticateToken, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).select('-password -salt');
+        res.json({
+            success: true,
+            user: user
+        });
+    } catch (error) {
+        console.error('❌ Profile fetch error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+});
+
+// Update user profile
+app.put('/api/profile', authenticateToken, async (req, res) => {
+    try {
+        const { fullName, username, bio, location, avatar } = req.body;
+        
+        const updateData = {};
+        if (fullName) updateData.fullName = fullName;
+        if (username) updateData.username = username.toLowerCase();
+        if (bio !== undefined) updateData.bio = bio;
+        if (location !== undefined) updateData.location = location;
+        if (avatar) updateData.avatar = avatar;
+
+        const user = await User.findByIdAndUpdate(
+            req.user._id,
+            updateData,
+            { new: true, runValidators: true }
+        ).select('-password -salt');
+
+        res.json({
+            success: true,
+            message: 'Profile updated successfully',
+            user: user
+        });
+        
+    } catch (error) {
+        console.error('❌ Profile update error:', error);
+        
+        if (error.code === 11000) {
+            return res.status(400).json({
+                success: false,
+                message: 'Username already exists'
+            });
+        }
+        
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+});
+
 // === FRIEND REQUESTS ENDPOINTS ===
 
 // Get friend requests for current user
