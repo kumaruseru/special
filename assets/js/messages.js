@@ -426,9 +426,9 @@ class TelegramRealtimeMessaging {
                 const userData = userProfile.user || userProfile.data || userProfile;
                 console.log('👤 Extracted userData:', userData);
                 
-                // Try different name fields
-                const possibleName = userData.name || 
-                                   userData.fullName || 
+                // Try different name fields - prioritize fullName since it's required in schema
+                const possibleName = userData.fullName || 
+                                   userData.name || 
                                    userData.displayName || 
                                    userData.firstName || 
                                    userData.title ||
@@ -437,8 +437,8 @@ class TelegramRealtimeMessaging {
                                    'User';
                 
                 console.log('👤 Possible name fields:', {
-                    name: userData.name,
                     fullName: userData.fullName,
+                    name: userData.name,
                     displayName: userData.displayName,
                     firstName: userData.firstName,
                     title: userData.title,

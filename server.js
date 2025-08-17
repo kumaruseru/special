@@ -1493,10 +1493,8 @@ app.get('/api/profile/me', authenticateToken, async (req, res) => {
                 email: user.email,
                 username: user.username,
                 fullName: user.fullName,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                name: user.name,
-                avatar: user.avatar || `https://placehold.co/150x150/4F46E5/FFFFFF?text=${(user.fullName || user.name || 'U').charAt(0).toUpperCase()}`,
+                name: user.fullName, // Use fullName as name
+                avatar: user.avatar || `https://placehold.co/150x150/4F46E5/FFFFFF?text=${(user.fullName || 'U').charAt(0).toUpperCase()}`,
                 bio: user.bio,
                 location: user.location,
                 isVerified: user.isVerified,
