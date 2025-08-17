@@ -1491,7 +1491,7 @@ app.get('/api/profile/me', authenticateToken, async (req, res) => {
             user: {
                 id: user._id,
                 email: user.email,
-                username: user.username,
+                username: user.username || user.email.split('@')[0], // Generate username from email if not set
                 fullName: user.fullName,
                 name: user.fullName, // Use fullName as name
                 avatar: user.avatar || `https://placehold.co/150x150/4F46E5/FFFFFF?text=${(user.fullName || 'U').charAt(0).toUpperCase()}`,

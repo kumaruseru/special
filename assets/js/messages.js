@@ -46,8 +46,8 @@ class TelegramRealtimeMessaging {
             
             this.currentUser = {
                 id: payload.userId,
-                username: payload.username,
-                name: savedUserData?.name || payload.name || payload.username || 'User'
+                username: savedUserData?.username || payload.email || 'user', // Use email as fallback username
+                name: savedUserData?.name || payload.fullName || payload.name || 'User'
             };
             
             console.log('👤 Initial currentUser:', this.currentUser);
