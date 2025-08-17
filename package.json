@@ -36,6 +36,13 @@
   ],
   "author": "Your Name",
   "license": "MIT",
+  "overrides": {
+    "yaeti": "npm:event-target-polyfill@0.0.4",
+    "websocket": "1.0.35"
+  },
+  "resolutions": {
+    "yaeti": "npm:event-target-polyfill@0.0.4"
+  },
   "devDependencies": {
     "@eslint/js": "^9.9.0",
     "eslint": "^9.9.0",
