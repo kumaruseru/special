@@ -149,9 +149,19 @@ async function connectDatabase() {
     }
 }
 
-// Start database connection
+// Start database connection and then server
 console.log('Calling connectDatabase()...');
-connectDatabase();
+
+// Start server after database connection
+async function startServer() {
+    try {
+        const dbConnected = await connectDatabase();
+        if (!dbConnected) {
+            console.error('❌ Failed to connect to database, cannot start server');
+            process.exit(1);
+        }
+
+        console.log('✅ Database connected, proceeding with server startup...');
 
 console.log('Creating database models...');
 // Database Models
@@ -535,18 +545,44 @@ app.use('*', (req, res) => {
     });
 });
 
-console.log('All setup completed, starting server...');
-// Start server
-const PORT = config.port;
-console.log(`Attempting to listen on port ${PORT}...`);
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server listening on port ${PORT}!`);
-    logger.info('Server started successfully', {
-        port: PORT,
-        environment: config.nodeEnv,
-        features: config.features,
-        pid: process.pid
-    });
-});
+        console.log('All setup completed, starting server...');
+        // Start server
+        const PORT = config.port;
+        console.log(`🔍 Environment Debug:`);
+        console.log(`- NODE_ENV: ${process.env.NODE_ENV}`);
+        console.log(`- PORT env: ${process.env.PORT}`);
+        console.log(`- Computed PORT: ${PORT}`);
+        console.log(`- Config port: ${config.port}`);
+
+        console.log(`Attempting to listen on port ${PORT}...`);
+        server.listen(PORT, '0.0.0.0', (error) => {
+            if (error) {
+                console.error('❌ Server failed to start:', error);
+                logger.error('Server startup failed', { error: error.message });
+                process.exit(1);
+            }
+            
+            console.log(`✅ Server listening on port ${PORT}!`);
+            console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+            console.log(`🔗 API debug: http://localhost:${PORT}/api/debug`);
+            console.log(`🔗 Posts API: http://localhost:${PORT}/api/posts`);
+            
+            logger.info('Server started successfully', {
+                port: PORT,
+                environment: config.nodeEnv,
+                features: config.features,
+                pid: process.pid
+            });
+        });
+
+    } catch (error) {
+        console.error('❌ Failed to start server:', error);
+        logger.error('Server startup error', { error: error.message });
+        process.exit(1);
+    }
+}
+
+// Start the application
+startServer();
 
 module.exports = { app, server, io, mongoose, logger, config };
