@@ -280,7 +280,6 @@ const FriendRequestSchema = new mongoose.Schema({
 });
 
 // Models
-const User = mongoose.model('User', UserSchema);
 const Message = mongoose.model('Message', MessageSchema);
 const Post = mongoose.model('Post', PostSchema);
 const FriendRequest = mongoose.model('FriendRequest', FriendRequestSchema);
