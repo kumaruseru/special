@@ -6,12 +6,12 @@ require('dotenv').config();
 
 const emailConfig = {
     service: 'gmail', // or your hosting provider's SMTP
-    host: 'smtp.cown.name.vn', // Update with your hosting SMTP
-    port: 587,
-    secure: false, // true for 465, false for other ports
+    host: process.env.SMTP_HOST || 'smtp.cown.name.vn',
+    port: parseInt(process.env.SMTP_PORT) || 587,
+    secure: process.env.SMTP_SECURE === 'true' || false,
     auth: {
-        user: process.env.EMAIL_USER || 'noreply@cown.name.vn',
-        pass: process.env.EMAIL_PASSWORD || 'Huong1505@'
+        user: process.env.EMAIL_USER || process.env.SMTP_USER,
+        pass: process.env.EMAIL_PASSWORD || process.env.SMTP_PASS
     },
     tls: {
         rejectUnauthorized: false

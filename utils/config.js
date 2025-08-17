@@ -4,7 +4,8 @@ const logger = require('./logger');
 const requiredEnvVars = [
     'NODE_ENV',
     'JWT_SECRET',
-    'MONGODB_URI'
+    'MONGODB_URI',
+    'ENCRYPTION_KEY'
 ];
 
 const optionalEnvVars = [
@@ -45,12 +46,20 @@ function validateEnvironment() {
 
     // Validate production settings
     if (process.env.NODE_ENV === 'production') {
-        if (process.env.JWT_SECRET === 'default-secret-key') {
+        if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'default-secret-key') {
             missing.push('JWT_SECRET cannot use default value in production');
         }
         
         if (!process.env.ENCRYPTION_KEY) {
             missing.push('ENCRYPTION_KEY is required in production');
+        }
+
+        if (!process.env.EMAIL_USER && !process.env.SMTP_USER) {
+            missing.push('EMAIL_USER or SMTP_USER is required in production');
+        }
+
+        if (!process.env.EMAIL_PASSWORD && !process.env.SMTP_PASS) {
+            missing.push('EMAIL_PASSWORD or SMTP_PASS is required in production');
         }
     }
 
@@ -90,7 +99,7 @@ function getConfig() {
         
         // Security
         jwtSecret: process.env.JWT_SECRET,
-        encryptionKey: process.env.ENCRYPTION_KEY || 'default-key-change-in-production',
+        encryptionKey: process.env.ENCRYPTION_KEY,
         
         // CORS
         corsOrigin: process.env.CORS_ORIGIN || '*',
