@@ -418,6 +418,7 @@ app.get('/api/debug', (req, res) => {
         timestamp: new Date().toISOString(),
         endpoints: [
             'GET /api/debug',
+            'GET /api/debug-users',
             'GET /api/users',
             'POST /api/fix-users',
             'GET /api/posts',
@@ -428,6 +429,55 @@ app.get('/api/debug', (req, res) => {
 });
 
 // Users API endpoint for discovery
+// Debug endpoint to see all user fields in database
+app.get('/api/debug-users', async (req, res) => {
+    try {
+        console.log('🔍 Debug: Getting all user data from database...');
+        
+        const users = await User.find({}).lean();
+        
+        console.log(`📊 Found ${users.length} users in database`);
+        users.forEach((user, index) => {
+            console.log(`\n👤 User ${index + 1}:`, {
+                _id: user._id,
+                email: user.email,
+                username: user.username,
+                fullName: user.fullName,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                name: user.name,
+                displayName: user.displayName,
+                // Show all fields
+                allFields: Object.keys(user)
+            });
+        });
+
+        res.json({
+            success: true,
+            users: users.map(user => ({
+                _id: user._id,
+                email: user.email,
+                username: user.username,
+                fullName: user.fullName,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                name: user.name,
+                displayName: user.displayName,
+                allFields: Object.keys(user)
+            })),
+            total: users.length
+        });
+
+    } catch (error) {
+        console.error('❌ Error getting debug user data:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error getting debug user data',
+            error: error.message
+        });
+    }
+});
+
 // Fix users with missing fullName
 app.post('/api/fix-users', async (req, res) => {
     try {
