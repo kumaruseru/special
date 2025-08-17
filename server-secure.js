@@ -478,6 +478,60 @@ app.get('/api/debug-users', async (req, res) => {
     }
 });
 
+// Debug production users - show raw data
+app.get('/api/debug-production', async (req, res) => {
+    try {
+        console.log('🔍 Debug: Getting production user data...');
+        
+        const users = await User.find({})
+            .select('fullName email username createdAt firstName lastName name displayName')
+            .lean();
+
+        console.log(`📊 Found ${users.length} users in production`);
+        
+        for (let i = 0; i < users.length; i++) {
+            const user = users[i];
+            console.log(`👤 Production User ${i + 1}:`, {
+                _id: user._id,
+                email: user.email,
+                username: user.username,
+                fullName: user.fullName,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                name: user.name,
+                displayName: user.displayName,
+                createdAt: user.createdAt,
+                allFields: Object.keys(user)
+            });
+        }
+
+        res.json({
+            success: true,
+            users: users.map(user => ({
+                _id: user._id,
+                email: user.email,
+                username: user.username,
+                fullName: user.fullName,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                name: user.name,
+                displayName: user.displayName,
+                createdAt: user.createdAt,
+                allFields: Object.keys(user)
+            })),
+            total: users.length
+        });
+
+    } catch (error) {
+        console.error('❌ Error getting production data:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error getting production data',
+            error: error.message
+        });
+    }
+});
+
 // Fix users with missing fullName
 app.post('/api/fix-users', async (req, res) => {
     try {
