@@ -35,12 +35,12 @@ const securityHeaders = () => {
             directives: {
                 defaultSrc: ["'self'"],
                 styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.tailwindcss.com"],
-                scriptSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://cdnjs.cloudflare.com", "https://cdn.tailwindcss.com"],
+                scriptSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://cdnjs.cloudflare.com", "https://cdn.tailwindcss.com", "https://cdn.socket.io"],
                 scriptSrcAttr: ["'unsafe-inline'", "'unsafe-hashes'"], // Allow inline event handlers with hashes
                 fontSrc: ["'self'", "https://fonts.gstatic.com"],
                 imgSrc: ["'self'", "data:", "https:"],
-                connectSrc: ["'self'", "ws:", "wss:"],
-                mediaSrc: ["'self'"],
+                connectSrc: ["'self'", "ws:", "wss:", "https://cdn.socket.io"],
+                mediaSrc: ["'self'", "data:", "blob:"],
                 objectSrc: ["'none'"],
                 baseUri: ["'self'"],
                 formAction: ["'self'"],

@@ -3,6 +3,7 @@ require('dotenv').config();
 
 const express = require('express');
 const mongoose = require('mongoose');
+const { ObjectId } = mongoose.Types;
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
@@ -231,6 +232,42 @@ const PostSchema = new mongoose.Schema({
 
 // Create Post model
 const Post = mongoose.model('Post', PostSchema);
+
+// Message Schema
+const MessageSchema = new mongoose.Schema({
+    senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    receiverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    content: { type: String, required: true },
+    messageType: { 
+        type: String, 
+        enum: ['text', 'image', 'video', 'audio', 'file', 'voice'], 
+        default: 'text' 
+    },
+    readAt: { type: Date, default: null },
+    editedAt: { type: Date },
+    deletedAt: { type: Date },
+    attachments: [{
+        type: { type: String, enum: ['image', 'video', 'audio', 'file'] },
+        url: String,
+        name: String,
+        size: Number
+    }],
+    replyTo: { type: mongoose.Schema.Types.ObjectId, ref: 'Message' },
+    reactions: [{
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        emoji: String,
+        createdAt: { type: Date, default: Date.now }
+    }]
+}, { 
+    timestamps: true,
+    indexes: [
+        { senderId: 1, receiverId: 1, createdAt: -1 },
+        { receiverId: 1, readAt: 1 }
+    ]
+});
+
+// Create Message model
+const Message = mongoose.model('Message', MessageSchema);
 
 console.log('Setting up request logging middleware...');
 // Request logging middleware
@@ -1619,6 +1656,163 @@ app.post('/api/friend-requests', authenticateToken, async (req, res) => {
             success: false,
             message: 'Error sending friend request',
             error: error.message
+        });
+    }
+});
+
+// === MESSAGING ROUTES ===
+app.get('/api/conversations', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user._id;
+        
+        const conversations = await Message.aggregate([
+            {
+                $match: {
+                    $or: [
+                        { senderId: new ObjectId(userId) },
+                        { receiverId: new ObjectId(userId) }
+                    ],
+                    deletedAt: { $exists: false }
+                }
+            },
+            {
+                $addFields: {
+                    partnerId: {
+                        $cond: {
+                            if: { $eq: ['$senderId', new ObjectId(userId)] },
+                            then: '$receiverId',
+                            else: '$senderId'
+                        }
+                    }
+                }
+            },
+            {
+                $sort: { createdAt: -1 }
+            },
+            {
+                $group: {
+                    _id: '$partnerId',
+                    lastMessage: { $first: '$$ROOT' },
+                    unreadCount: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $eq: ['$receiverId', new ObjectId(userId)] },
+                                        { $eq: ['$readAt', null] }
+                                    ]
+                                },
+                                1,
+                                0
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'otherUser'
+                }
+            },
+            {
+                $unwind: '$otherUser'
+            },
+            {
+                $project: {
+                    partnerId: '$_id',
+                    otherUser: {
+                        id: '$otherUser._id',
+                        name: '$otherUser.fullName',
+                        username: '$otherUser.username',
+                        avatar: '$otherUser.avatar'
+                    },
+                    lastMessage: {
+                        id: '$lastMessage._id',
+                        content: '$lastMessage.content',
+                        timestamp: '$lastMessage.createdAt',
+                        senderId: '$lastMessage.senderId'
+                    },
+                    unreadCount: 1
+                }
+            },
+            {
+                $sort: { 'lastMessage.timestamp': -1 }
+            }
+        ]);
+
+        res.json({
+            success: true,
+            conversations: conversations
+        });
+
+    } catch (error) {
+        logger.error('Conversations fetch error', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+});
+
+app.get('/api/conversations/:partnerId/messages', authenticateToken, async (req, res) => {
+    try {
+        const { partnerId } = req.params;
+        const userId = req.user._id;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50;
+        const skip = (page - 1) * limit;
+
+        const messages = await Message.find({
+            $or: [
+                { senderId: userId, receiverId: partnerId },
+                { senderId: partnerId, receiverId: userId }
+            ],
+            deletedAt: { $exists: false }
+        })
+        .populate('senderId', 'fullName username avatar')
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .skip(skip);
+
+        // Mark messages as read
+        await Message.updateMany(
+            {
+                senderId: partnerId,
+                receiverId: userId,
+                readAt: { $exists: false }
+            },
+            { readAt: new Date() }
+        );
+
+        const formattedMessages = messages.reverse().map(msg => ({
+            id: msg._id,
+            text: msg.content,
+            senderId: msg.senderId._id,
+            senderName: msg.senderId.fullName,
+            timestamp: msg.createdAt,
+            readAt: msg.readAt,
+            messageType: msg.messageType,
+            attachments: msg.attachments
+        }));
+
+        res.json({
+            success: true,
+            messages: formattedMessages,
+            pagination: {
+                page,
+                limit,
+                hasMore: messages.length === limit
+            }
+        });
+
+    } catch (error) {
+        logger.error('Messages fetch error', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
         });
     }
 });
