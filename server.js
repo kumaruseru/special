@@ -916,13 +916,19 @@ app.post('/api/register', async (req, res) => {
         }
 
         console.log('Hashing password...');
-        const hashedPassword = await bcrypt.hash(password, 12);
+        // Generate salt for password hashing
+        const salt = crypto.randomBytes(16).toString('hex');
+        // Create SHA256 hash of password + salt
+        const sha256WithSalt = crypto.createHash('sha256').update(password + salt).digest('hex');
+        // Then hash with bcrypt
+        const hashedPassword = await bcrypt.hash(sha256WithSalt, 12);
         const verificationToken = crypto.randomBytes(32).toString('hex');
 
         console.log('Creating user object...');
         const user = new User({
             email: email.toLowerCase(),
             password: hashedPassword,
+            salt: salt, // Store the salt for login verification
             fullName,
             username: username ? username.toLowerCase() : null,
             verificationToken,
