@@ -419,6 +419,7 @@ app.get('/api/debug', (req, res) => {
         endpoints: [
             'GET /api/debug',
             'GET /api/users',
+            'POST /api/fix-users',
             'GET /api/posts',
             'POST /api/register',
             'GET /health'
@@ -427,6 +428,64 @@ app.get('/api/debug', (req, res) => {
 });
 
 // Users API endpoint for discovery
+// Fix users with missing fullName
+app.post('/api/fix-users', async (req, res) => {
+    try {
+        console.log('🔧 Starting user data fix...');
+        
+        // Find users without fullName or with generic names
+        const usersToFix = await User.find({
+            $or: [
+                { fullName: { $exists: false } },
+                { fullName: null },
+                { fullName: '' }
+            ]
+        });
+
+        console.log(`📊 Found ${usersToFix.length} users to fix`);
+
+        let fixedCount = 0;
+        for (const user of usersToFix) {
+            // Extract first name from email or use username
+            let newFullName = user.username;
+            if (user.email) {
+                const emailPart = user.email.split('@')[0];
+                // Convert email username to a readable name
+                newFullName = emailPart.replace(/[0-9]/g, '').replace(/[._-]/g, ' ');
+                newFullName = newFullName.split(' ')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+            }
+
+            if (!newFullName || newFullName.trim() === '') {
+                newFullName = `User ${user._id.toString().slice(-4)}`;
+            }
+
+            await User.findByIdAndUpdate(user._id, {
+                fullName: newFullName,
+                avatar: `https://placehold.co/150x150/4F46E5/FFFFFF?text=${newFullName.charAt(0).toUpperCase()}`
+            });
+
+            console.log(`✅ Fixed user ${user._id}: ${user.email} -> ${newFullName}`);
+            fixedCount++;
+        }
+
+        res.json({
+            success: true,
+            message: `Fixed ${fixedCount} users`,
+            fixedCount
+        });
+
+    } catch (error) {
+        console.error('❌ Error fixing users:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fixing users',
+            error: error.message
+        });
+    }
+});
+
 app.get('/api/users', async (req, res) => {
     console.log('👥 Users API called with:', req.query);
     logger.info('Users API accessed', { query: req.query, ip: req.ip });
