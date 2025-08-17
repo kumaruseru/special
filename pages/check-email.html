@@ -36,12 +36,12 @@
                     </p>
                 </div>
 
-                <!-- For testing purposes -->
-                <div id="debug-section" class="bg-yellow-900/30 border border-yellow-500/30 rounded-lg p-4 space-y-3">
+                <!-- For testing purposes - only show if email fails -->
+                <div id="debug-section" class="bg-yellow-900/30 border border-yellow-500/30 rounded-lg p-4 space-y-3 hidden">
                     <p class="text-yellow-300 text-sm font-bold">🧪 CHẾ ĐỘ TEST:</p>
-                    <p class="text-yellow-200 text-xs">Trong môi trường thực tế, bạn sẽ nhận email. Hiện tại để test:</p>
+                    <p class="text-yellow-200 text-xs">Email service có vấn đề. Sử dụng link backup:</p>
                     <button id="get-reset-link" class="w-full p-2 bg-yellow-600 text-black rounded-lg text-sm font-bold hover:bg-yellow-500 transition">
-                        Lấy Link Reset (Test)
+                        Lấy Link Reset (Backup)
                     </button>
                     <div id="reset-link-display" class="hidden">
                         <p class="text-yellow-200 text-xs">Reset link:</p>
@@ -64,6 +64,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="../assets/js/forgot-password.js"></script>
     <script>
+        // Check URL params for fallback reset link
+        const urlParams = new URLSearchParams(window.location.search);
+        const fallbackLink = urlParams.get('fallback');
+        
+        if (fallbackLink) {
+            // Show debug section if there's a fallback link
+            document.getElementById('debug-section').classList.remove('hidden');
+            document.getElementById('reset-link').href = decodeURIComponent(fallbackLink);
+            document.getElementById('reset-link').textContent = decodeURIComponent(fallbackLink);
+            document.getElementById('reset-link-display').classList.remove('hidden');
+        }
+        
         // Test functionality
         document.getElementById('get-reset-link').addEventListener('click', async () => {
             const email = prompt('Nhập email để lấy reset link:');

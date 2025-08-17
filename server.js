@@ -15,6 +15,7 @@ const crypto = require('crypto');
 const logger = require('./utils/logger');
 const { validateEnvironment, getConfig } = require('./utils/config');
 const { securityHeaders, authRateLimit, apiRateLimit } = require('./utils/security');
+const { sendPasswordResetEmail, testEmailConnection } = require('./config/email');
 
 // Validate environment and get config
 try {
@@ -585,17 +586,39 @@ app.post('/api/forgot-password', async (req, res) => {
         
         console.log('✅ Reset token generated for:', email);
         
-        // Create reset link (in production, this would be sent via email)
-        const resetLink = `${req.protocol}://${req.get('host')}/pages/reset-password.html?token=${resetToken}`;
-        console.log('🔗 Reset link:', resetLink);
-        
-        // For now, just return success (in production, you'd send email here)
-        res.json({
-            success: true,
-            message: 'Liên kết khôi phục mật khẩu đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.',
-            // For testing purposes, include the link (remove in production)
-            resetLink: resetLink
-        });
+        // Send password reset email
+        try {
+            const emailResult = await sendPasswordResetEmail(user.email, resetToken, user.fullName);
+            
+            if (emailResult.success) {
+                console.log('📧 Password reset email sent successfully:', emailResult.messageId);
+                
+                res.json({
+                    success: true,
+                    message: 'Liên kết khôi phục mật khẩu đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.'
+                });
+            } else {
+                console.error('❌ Failed to send password reset email:', emailResult.error);
+                
+                res.json({
+                    success: true, // Still return success to not reveal if user exists
+                    message: 'Nếu email tồn tại, chúng tôi đã gửi liên kết reset password'
+                });
+            }
+        } catch (emailError) {
+            console.error('❌ Error sending reset email:', emailError);
+            
+            // For testing, still provide the reset link
+            const resetLink = `${req.protocol}://${req.get('host')}/pages/reset-password.html?token=${resetToken}`;
+            console.log('🔗 Fallback reset link:', resetLink);
+            
+            res.json({
+                success: true,
+                message: 'Email service temporarily unavailable. Please try again later.',
+                // Include link for testing when email fails
+                resetLink: resetLink
+            });
+        }
         
     } catch (error) {
         console.error('❌ Forgot password error:', error);
@@ -655,6 +678,37 @@ app.post('/api/reset-password', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Lỗi server'
+        });
+    }
+});
+
+// Test email connection endpoint
+app.get('/api/test-email', async (req, res) => {
+    try {
+        console.log('🧪 Testing email connection...');
+        
+        const result = await testEmailConnection();
+        
+        if (result.success) {
+            res.json({
+                success: true,
+                message: 'Email connection successful! ✅',
+                details: result.message
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Email connection failed ❌',
+                error: result.error
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Email test error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Email test failed',
+            error: error.message
         });
     }
 });
@@ -800,6 +854,7 @@ app.get('/api/debug', (req, res) => {
             'GET /api/debug-production',
             'GET /api/debug-raw',
             'GET /api/debug-reset-link/:email',
+            'GET /api/test-email',
             'GET /api/users',
             'POST /api/get-salt',
             'POST /api/login',
