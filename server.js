@@ -453,19 +453,29 @@ app.get('/api/users', async (req, res) => {
             .lean();
 
         console.log('👥 Users fetched:', users.length);
+        console.log('📊 Sample user data:', users[0]); // Debug first user
 
         // Format users for frontend
-        const formattedUsers = users.map(user => ({
-            id: user._id.toString(),
-            name: user.fullName || user.username || 'Anonymous User',
-            username: user.username || user.email?.split('@')[0] || 'user',
-            email: user.email || 'user@space.com',
-            avatar: user.avatar || `https://placehold.co/64x64/4F46E5/FFFFFF?text=${(user.fullName || 'U').charAt(0).toUpperCase()}`,
-            bio: user.bio || 'Space explorer 🚀',
-            location: user.location || 'Unknown Galaxy',
-            isVerified: user.isVerified || false,
-            joinedAt: user.createdAt
-        }));
+        const formattedUsers = users.map((user, index) => {
+            console.log(`🔍 User ${index + 1}:`, {
+                fullName: user.fullName,
+                username: user.username,
+                email: user.email,
+                _id: user._id
+            });
+            
+            return {
+                id: user._id.toString(),
+                name: user.fullName || user.username || `User ${user._id.toString().slice(-4)}`,
+                username: user.username || user.email?.split('@')[0] || 'user',
+                email: user.email || 'user@space.com',
+                avatar: user.avatar || `https://placehold.co/64x64/4F46E5/FFFFFF?text=${(user.fullName || user.username || 'U').charAt(0).toUpperCase()}`,
+                bio: user.bio || 'Space explorer 🚀',
+                location: user.location || 'Unknown Galaxy',
+                isVerified: user.isVerified || false,
+                joinedAt: user.createdAt
+            };
+        });
 
         console.log('✅ Sending response with', formattedUsers.length, 'users');
 
