@@ -364,7 +364,7 @@ app.post('/api/get-salt', async (req, res) => {
     }
 });
 
-// Debug login endpoint
+// Debug login endpoint with multiple hash testing
 app.post('/api/debug-login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -393,19 +393,53 @@ app.post('/api/debug-login', async (req, res) => {
             });
         }
         
-        // Test password comparison
-        const isValidPassword = await bcrypt.compare(password, user.password);
+        // Test multiple password hashing scenarios
+        const crypto = require('crypto');
+        const tests = {
+            direct: await bcrypt.compare(password, user.password),
+            sha256: false,
+            sha256Salt: false,
+            doubleBcrypt: false,
+            sha256ThenBcrypt: false
+        };
+        
+        // Test SHA256 hash
+        const sha256Hash = crypto.createHash('sha256').update(password).digest('hex');
+        tests.sha256 = await bcrypt.compare(sha256Hash, user.password);
+        
+        // Test SHA256 with salt (if salt exists)
+        if (user.salt) {
+            const sha256WithSalt = crypto.createHash('sha256').update(password + user.salt).digest('hex');
+            tests.sha256Salt = await bcrypt.compare(sha256WithSalt, user.password);
+            
+            // Test SHA256 + salt, then SHA256 again, then bcrypt
+            const doubleSha256 = crypto.createHash('sha256').update(sha256WithSalt).digest('hex');
+            tests.sha256ThenBcrypt = await bcrypt.compare(doubleSha256, user.password);
+        }
+        
+        // Test if password is double bcrypt
+        try {
+            const bcryptFirst = await bcrypt.hash(password, 10);
+            tests.doubleBcrypt = await bcrypt.compare(bcryptFirst, user.password);
+        } catch (e) {
+            tests.doubleBcrypt = 'error';
+        }
+        
+        const anySuccess = Object.values(tests).some(t => t === true);
         
         res.json({
-            success: isValidPassword,
-            message: isValidPassword ? 'Password correct' : 'Password incorrect',
+            success: anySuccess,
+            message: anySuccess ? 'Found working hash method' : 'No hash method worked',
             debug: {
                 email: user.email,
                 userExists: true,
-                passwordValid: isValidPassword,
+                tests,
+                hasSalt: !!user.salt,
+                saltValue: user.salt || 'none',
                 storedPasswordType: user.password.startsWith('$2') ? 'bcrypt' : 'other',
                 inputPasswordLength: password.length,
-                storedPasswordLength: user.password.length
+                storedPasswordLength: user.password.length,
+                passwordPrefix: user.password.substring(0, 15)
             }
         });
         
