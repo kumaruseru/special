@@ -189,14 +189,15 @@ function checkAuth() {
     
     // Check if token exists and is valid
     if (!token) {
-        // Only redirect if we also don't have user data
-        if (!userName && !userEmail) {
-            const currentPath = window.location.pathname;
+        // Only redirect if we also don't have user data AND we're not on allowed pages
+        const currentPath = window.location.pathname;
+        const allowedPaths = ['login.html', 'register.html', 'discovery.html'];
+        const isAllowedPage = allowedPaths.some(page => currentPath.includes(page));
+        
+        if (!userName && !userEmail && !isAllowedPage) {
             console.log('No token or user data found, current path:', currentPath);
-            if (!currentPath.includes('login.html') && !currentPath.includes('register.html')) {
-                console.log('Redirecting to login...');
-                window.location.href = '/pages/login.html';
-            }
+            console.log('Redirecting to login...');
+            window.location.href = '/pages/login.html';
         }
         return false;
     }
@@ -217,7 +218,13 @@ function checkAuth() {
                 localStorage.removeItem('token');
                 localStorage.removeItem('cosmic_token');
                 localStorage.removeItem('isLoggedIn');
-                window.location.href = '/pages/login.html';
+                const currentPath = window.location.pathname;
+                const allowedPaths = ['login.html', 'register.html', 'discovery.html'];
+                const isAllowedPage = allowedPaths.some(page => currentPath.includes(page));
+                
+                if (!isAllowedPage) {
+                    window.location.href = '/pages/login.html';
+                }
                 return false;
             }
         }

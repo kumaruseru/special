@@ -66,13 +66,18 @@ class FriendRequestsManager {
                 const result = await response.json();
                 this.currentUser = result.user || result;
                 console.log('Current user:', this.currentUser);
-            } else {
-                console.log('Auth failed, clearing tokens');
+            } else if (response.status === 401 || response.status === 403) {
+                // Only clear tokens for actual authentication errors
+                console.log('Auth failed with 401/403, clearing tokens');
                 localStorage.removeItem('token');
                 localStorage.removeItem('authToken');
+            } else {
+                // For other errors (like 404, 500), don't clear tokens
+                console.log('API error but not auth related:', response.status);
             }
         } catch (error) {
             console.error('Auth check error:', error);
+            // Don't clear tokens on network errors
         }
     }
 
@@ -173,6 +178,14 @@ class FriendRequestsManager {
             if (!response.ok) {
                 const errorText = await response.text();
                 console.log('Error response:', errorText);
+                
+                // Only redirect on auth errors, not on API errors
+                if (response.status === 401 || response.status === 403) {
+                    console.log('Authentication error, redirecting to login');
+                    this.redirectToLogin();
+                    return;
+                }
+                
                 throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
 

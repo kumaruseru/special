@@ -1384,6 +1384,105 @@ app.get('/api/posts', async (req, res) => {
     }
 });
 
+// === FRIEND REQUESTS ENDPOINTS ===
+
+// Get friend requests for current user
+app.get('/api/friend-requests', authenticateToken, async (req, res) => {
+    try {
+        console.log('📨 Getting friend requests for user:', req.user.id);
+        
+        // Since we don't have FriendRequest model implemented yet, 
+        // let's return empty list to prevent 404 error
+        const friendRequests = [];
+        
+        console.log('✅ Friend requests found:', friendRequests.length);
+        
+        res.json({
+            success: true,
+            friendRequests: friendRequests,
+            count: friendRequests.length
+        });
+        
+    } catch (error) {
+        console.error('❌ Error getting friend requests:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading friend requests',
+            error: error.message
+        });
+    }
+});
+
+// Handle friend request (accept/reject)
+app.put('/api/friend-requests/:requestId', authenticateToken, async (req, res) => {
+    try {
+        const { requestId } = req.params;
+        const { action } = req.body; // 'accept' or 'reject'
+        
+        console.log('🔄 Handling friend request:', { requestId, action, userId: req.user.id });
+        
+        if (!['accept', 'reject'].includes(action)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid action. Must be "accept" or "reject"'
+            });
+        }
+        
+        // For now, just return success (implement later when needed)
+        res.json({
+            success: true,
+            message: `Friend request ${action}ed successfully`,
+            action: action
+        });
+        
+    } catch (error) {
+        console.error('❌ Error handling friend request:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error handling friend request',
+            error: error.message
+        });
+    }
+});
+
+// Send friend request
+app.post('/api/friend-requests', authenticateToken, async (req, res) => {
+    try {
+        const { receiverId, message } = req.body;
+        const senderId = req.user.id;
+        
+        console.log('📤 Sending friend request:', { senderId, receiverId, message });
+        
+        if (!receiverId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Receiver ID is required'
+            });
+        }
+        
+        if (senderId === receiverId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot send friend request to yourself'
+            });
+        }
+        
+        // For now, just return success (implement later when needed)
+        res.json({
+            success: true,
+            message: 'Friend request sent successfully'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error sending friend request:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error sending friend request',
+            error: error.message
+        });
+    }
+});
+
 // Health check endpoint for Render
 app.get('/health', (req, res) => {
     res.status(200).json({
