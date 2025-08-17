@@ -424,11 +424,32 @@ class TelegramRealtimeMessaging {
                 
                 // Extract the actual user data if it's wrapped
                 const userData = userProfile.user || userProfile.data || userProfile;
+                console.log('👤 Extracted userData:', userData);
+                
+                // Try different name fields
+                const possibleName = userData.name || 
+                                   userData.fullName || 
+                                   userData.displayName || 
+                                   userData.firstName || 
+                                   userData.title ||
+                                   this.currentUser.name ||
+                                   this.currentUser.username ||
+                                   'User';
+                
+                console.log('👤 Possible name fields:', {
+                    name: userData.name,
+                    fullName: userData.fullName,
+                    displayName: userData.displayName,
+                    firstName: userData.firstName,
+                    title: userData.title,
+                    currentName: this.currentUser.name,
+                    finalName: possibleName
+                });
                 
                 // Update current user with full profile data
                 this.currentUser = {
                     ...this.currentUser,
-                    name: userData.name || userData.fullName || userData.displayName || this.currentUser.name,
+                    name: possibleName,
                     username: userData.username || this.currentUser.username,
                     email: userData.email,
                     avatar: userData.avatar,
@@ -443,6 +464,11 @@ class TelegramRealtimeMessaging {
                 // Update UI with new profile data
                 this.updateUserProfile();
                 
+                // If still no name, prompt user to enter one
+                if (!this.currentUser.name || this.currentUser.name === 'Unknown User' || this.currentUser.name === 'User') {
+                    this.promptUserName();
+                }
+                
                 console.log('✅ User profile updated:', this.currentUser.name);
             } else {
                 console.warn('⚠️ Failed to load user profile, using token data');
@@ -451,6 +477,17 @@ class TelegramRealtimeMessaging {
             console.error('❌ Error loading user profile:', error);
             // Try to load from localStorage as fallback
             this.loadUserFromStorage();
+        }
+    }
+
+    // Prompt user to enter their name
+    promptUserName() {
+        const userName = prompt('Vui lòng nhập tên của bạn:');
+        if (userName && userName.trim()) {
+            this.currentUser.name = userName.trim();
+            localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+            this.updateUserProfile();
+            console.log('👤 User entered name:', userName);
         }
     }
 
