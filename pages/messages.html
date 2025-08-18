@@ -14,6 +14,21 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Custom Stylesheet -->
     <link rel="stylesheet" href="../assets/css/messages.css">
+    <style>
+        /* Prevent message overflow */
+        .message-group {
+            max-width: 100%;
+        }
+        .message-content {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            hyphens: auto;
+        }
+        #messages-container {
+            overflow-x: hidden;
+        }
+    </style>
 </head>
 <body class="w-full min-h-screen">
 

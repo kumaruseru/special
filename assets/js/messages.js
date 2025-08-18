@@ -811,10 +811,10 @@ class TelegramRealtimeMessaging {
             }
             
             return `
-                <div class="message-group flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4">
-                    <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${isOwn ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-100'}">
-                        ${!isOwn ? `<div class="text-xs text-gray-400 mb-1">${message.senderName || 'Unknown'}</div>` : ''}
-                        <div class="text-sm whitespace-pre-wrap">${this.escapeHtml(message.content || message.text || '')}</div>
+                <div class="message-group flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4 px-2">
+                    <div class="max-w-[70%] min-w-0 px-4 py-2 rounded-lg ${isOwn ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-100'}">
+                        ${!isOwn ? `<div class="text-xs text-gray-400 mb-1 truncate">${message.senderName || 'Unknown'}</div>` : ''}
+                        <div class="text-sm message-content">${this.escapeHtml(message.content || message.text || '')}</div>
                         <div class="flex items-center justify-end mt-1 space-x-1">
                             <span class="text-xs ${isOwn ? 'text-blue-200' : 'text-gray-400'}">${this.formatTime(message.timestamp)}</span>
                             ${isOwn ? `<span class="text-xs">${statusIcon}</span>` : ''}
