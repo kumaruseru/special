@@ -624,18 +624,28 @@ class TelegramRealtimeMessaging {
 
     // Select Chat
     async selectChat(chatId) {
+        console.log('🚀 selectChat called with:', chatId);
         try {
             const conversation = this.conversations.get(chatId);
-            if (!conversation) return;
+            console.log('📝 Found conversation:', conversation);
+            if (!conversation) {
+                console.warn('⚠️ No conversation found for chatId:', chatId);
+                return;
+            }
 
-        this.currentChat = conversation;
-        
-        // Update input state
-        this.updateInputState();
-        
-        // Update chat header
-        this.updateChatHeader(conversation);
-        this.renderConversations(); // Re-render to show active state            // Load messages
+            this.currentChat = conversation;
+            console.log('✅ Current chat set to:', this.currentChat);
+            
+            // Update input state
+            this.updateInputState();
+            
+            // Update chat header
+            this.updateChatHeader(conversation);
+            
+            // Re-render to show active state
+            this.renderConversations(); 
+            
+            // Load messages
             await this.loadMessages(chatId);
             
             // Join chat room
@@ -771,6 +781,7 @@ class TelegramRealtimeMessaging {
             const conversationItem = e.target.closest('.conversation-item');
             if (conversationItem) {
                 const chatId = conversationItem.getAttribute('data-chat-id');
+                console.log('🎯 Conversation clicked:', chatId, conversationItem);
                 if (chatId) {
                     this.selectChat(chatId);
                 }
@@ -952,13 +963,21 @@ class TelegramRealtimeMessaging {
     // Update input state based on conversation selection
     updateInputState() {
         const messageInput = document.getElementById('message-input');
+        const inputContainer = messageInput?.closest('.p-4');
+        
         if (messageInput) {
             if (this.currentChat) {
                 messageInput.disabled = false;
                 messageInput.placeholder = 'Nhập tin nhắn...';
+                if (inputContainer) {
+                    inputContainer.style.display = 'block';
+                }
             } else {
                 messageInput.disabled = true;
                 messageInput.placeholder = 'Chọn cuộc trò chuyện để bắt đầu...';
+                if (inputContainer) {
+                    inputContainer.style.display = 'none';
+                }
             }
         }
     }
