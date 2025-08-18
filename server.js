@@ -1854,6 +1854,7 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
             },
             {
                 $project: {
+                    id: '$_id', // Add id field for frontend
                     partnerId: '$_id',
                     otherUser: {
                         id: '$otherUser._id',
