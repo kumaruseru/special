@@ -598,7 +598,7 @@ class TelegramRealtimeMessaging {
             }
             
             return `
-                <div class="conversation-item ${isActive ? 'active' : ''}" onclick="telegramMessaging.selectChat('${conv.id}')">
+                                <div class="conversation-item ${isActive ? 'active' : ''}" data-chat-id="${conv.id}">
                     <div class="flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-700/30 ${isActive ? 'bg-blue-600/20 border-l-2 border-blue-400' : ''}">
                         <div class="relative">
                             <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-sm font-semibold text-white">
@@ -760,6 +760,21 @@ class TelegramRealtimeMessaging {
             this.setupSearch();
             this.setupLogout();
             this.updateUserProfile();
+            this.setupConversationClicks();
+        });
+    }
+
+    // Setup conversation click handlers with event delegation
+    setupConversationClicks() {
+        // Use event delegation for dynamically added conversation items
+        document.addEventListener('click', (e) => {
+            const conversationItem = e.target.closest('.conversation-item');
+            if (conversationItem) {
+                const chatId = conversationItem.getAttribute('data-chat-id');
+                if (chatId) {
+                    this.selectChat(chatId);
+                }
+            }
         });
     }
 
@@ -959,6 +974,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Initializing Telegram-style messaging...');
     
     telegramMessaging = new TelegramRealtimeMessaging();
+    
+    // Make it globally accessible for inline onclick handlers
+    window.telegramMessaging = telegramMessaging;
+    
     const success = await telegramMessaging.initializeConnection();
     
     if (success) {
