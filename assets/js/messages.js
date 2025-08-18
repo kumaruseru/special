@@ -184,8 +184,18 @@ class TelegramRealtimeMessaging {
                 
                 this.conversations.clear();
                 
-                conversations.forEach(conv => {
-                    this.conversations.set(conv.id, conv);
+                conversations.forEach((conv, index) => {
+                    console.log(`📝 Processing conversation ${index}:`, conv);
+                    console.log(`🔑 Conversation ID: ${conv.id}, _id: ${conv._id}`);
+                    
+                    // Use _id if id is not available (MongoDB format)
+                    const convId = conv.id || conv._id;
+                    if (convId) {
+                        conv.id = convId; // Ensure id field exists
+                        this.conversations.set(convId, conv);
+                    } else {
+                        console.warn('⚠️ Conversation missing ID:', conv);
+                    }
                 });
                 
                 this.renderConversations();
