@@ -799,6 +799,20 @@ class TelegramRealtimeMessaging {
             const isOwn = message.senderId === this.currentUser.id;
             const statusIcon = this.getMessageStatusIcon(message.status);
             
+            // Get sender name with multiple fallbacks
+            let senderName = message.senderName || 
+                           message.sender?.name || 
+                           message.sender?.fullName ||
+                           message.sender?.username ||
+                           message.username ||
+                           message.name ||
+                           'Unknown User';
+            
+            // If it's a conversation with otherUser, use that name for non-own messages
+            if (!isOwn && this.currentChat?.otherUser?.name) {
+                senderName = this.currentChat.otherUser.name;
+            }
+            
             // Debug log for first few messages
             if (index < 3) {
                 console.log(`📝 Message ${index}:`, {
@@ -806,14 +820,15 @@ class TelegramRealtimeMessaging {
                     currentUserId: this.currentUser.id,
                     isOwn: isOwn,
                     content: message.content,
-                    senderName: message.senderName
+                    senderName: message.senderName,
+                    fullMessage: message
                 });
             }
             
             return `
                 <div class="message-group flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4 px-2">
                     <div class="max-w-[70%] min-w-0 px-4 py-2 rounded-lg ${isOwn ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-100'}">
-                        ${!isOwn ? `<div class="text-xs text-gray-400 mb-1 truncate">${message.senderName || 'Unknown'}</div>` : ''}
+                        ${!isOwn ? `<div class="text-xs text-gray-400 mb-1 truncate">${senderName}</div>` : ''}
                         <div class="text-sm message-content">${this.escapeHtml(message.content || message.text || '')}</div>
                         <div class="flex items-center justify-end mt-1 space-x-1">
                             <span class="text-xs ${isOwn ? 'text-blue-200' : 'text-gray-400'}">${this.formatTime(message.timestamp)}</span>
