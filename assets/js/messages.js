@@ -20,6 +20,9 @@ class TelegramRealtimeMessaging {
         
         this.initializeEventListeners();
         
+        // Setup conversation clicks immediately
+        this.setupConversationClicks();
+        
         // Set initial input state
         this.updateInputState();
     }
@@ -835,17 +838,28 @@ class TelegramRealtimeMessaging {
 
     // Setup conversation click handlers with event delegation
     setupConversationClicks() {
-        // Use event delegation for dynamically added conversation items
-        document.addEventListener('click', (e) => {
+        // Remove existing listener first to avoid duplicates
+        if (this.conversationClickHandler) {
+            document.removeEventListener('click', this.conversationClickHandler);
+        }
+        
+        // Create new handler
+        this.conversationClickHandler = (e) => {
             const conversationItem = e.target.closest('.conversation-item');
             if (conversationItem) {
                 const chatId = conversationItem.getAttribute('data-chat-id');
                 console.log('🎯 Conversation clicked:', chatId, conversationItem);
                 if (chatId) {
+                    e.preventDefault();
+                    e.stopPropagation();
                     this.selectChat(chatId);
                 }
             }
-        });
+        };
+        
+        // Add new listener
+        document.addEventListener('click', this.conversationClickHandler);
+        console.log('✅ Conversation click handler setup complete');
     }
 
     // Update User Profile Information
