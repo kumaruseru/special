@@ -1014,19 +1014,33 @@ class TelegramRealtimeMessaging {
         const chatStatusElement = document.getElementById('chat-status');
         const chatAvatarElement = document.getElementById('chat-avatar');
         
+        // Get the display name from multiple sources
+        let displayName = conversation.name || 
+                         conversation.otherUser?.name || 
+                         conversation.otherUser?.fullName ||
+                         conversation.otherUser?.username ||
+                         'Unknown User';
+        
+        console.log('🎭 updateChatHeader called with:', {
+            conversation: conversation,
+            displayName: displayName,
+            otherUser: conversation.otherUser
+        });
+        
         if (chatNameElement) {
-            chatNameElement.textContent = conversation.name || 'Unknown User';
+            chatNameElement.textContent = displayName;
         }
         
         if (chatStatusElement) {
-            chatStatusElement.textContent = conversation.isOnline ? 'Đang hoạt động' : 'Không hoạt động';
-            chatStatusElement.className = `text-xs ${conversation.isOnline ? 'text-green-400' : 'text-gray-400'}`;
+            const isOnline = conversation.isOnline || conversation.otherUser?.isOnline || false;
+            chatStatusElement.textContent = isOnline ? 'Đang hoạt động' : 'Không hoạt động';
+            chatStatusElement.className = `text-xs ${isOnline ? 'text-green-400' : 'text-gray-400'}`;
         }
         
         if (chatAvatarElement) {
-            const firstLetter = (conversation.name || 'U').charAt(0).toUpperCase();
+            const firstLetter = displayName.charAt(0).toUpperCase();
             chatAvatarElement.src = `https://placehold.co/40x40/8A2BE2/FFFFFF?text=${firstLetter}`;
-            chatAvatarElement.alt = `${conversation.name}'s Avatar`;
+            chatAvatarElement.alt = `${displayName}'s Avatar`;
         }
     }
 
