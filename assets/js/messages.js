@@ -553,22 +553,39 @@ class TelegramRealtimeMessaging {
 
     // UI Rendering Methods
     renderConversations() {
+        console.log('🎨 renderConversations called, conversations count:', this.conversations.size);
         const container = document.getElementById('conversations-list');
-        if (!container) return;
+        if (!container) {
+            console.error('❌ conversations-list container not found');
+            return;
+        }
 
         const conversationsArray = Array.from(this.conversations.values())
             .sort((a, b) => new Date(b.lastActivity || 0) - new Date(a.lastActivity || 0));
 
+        console.log('📋 Conversations array:', conversationsArray);
+
         if (conversationsArray.length === 0) {
+            console.log('📭 No conversations found, showing empty state');
             container.innerHTML = `
                 <div class="text-center py-8">
                     <div class="w-16 h-16 bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
                         <i class="fas fa-comments text-gray-400 text-2xl"></i>
                     </div>
                     <h3 class="text-white text-lg font-semibold mb-2">No conversations yet</h3>
-                    <p class="text-gray-400">Start a new chat to begin messaging!</p>
+                    <p class="text-gray-400 mb-4">Start a new chat to begin messaging!</p>
+                    <button id="create-test-conversation" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        Create Test Conversation
+                    </button>
                 </div>
             `;
+            
+            // Add event listener for test conversation button
+            const testButton = document.getElementById('create-test-conversation');
+            if (testButton) {
+                testButton.addEventListener('click', () => this.createTestConversation());
+            }
+            
             return;
         }
 
@@ -620,6 +637,34 @@ class TelegramRealtimeMessaging {
                 </div>
             `;
         }).join('');
+        
+        console.log('✅ Conversations HTML rendered, container innerHTML length:', container.innerHTML.length);
+        console.log('🔍 Looking for conversation items with data-chat-id:', container.querySelectorAll('[data-chat-id]').length);
+    }
+    
+    // Create test conversation for debugging
+    async createTestConversation() {
+        try {
+            console.log('🧪 Creating test conversation...');
+            const response = await fetch('/api/conversations/test', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ Test conversation created:', data);
+                // Reload conversations
+                await this.loadConversations();
+            } else {
+                console.error('❌ Failed to create test conversation:', response.status);
+            }
+        } catch (error) {
+            console.error('❌ Error creating test conversation:', error);
+        }
     }
 
     // Select Chat

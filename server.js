@@ -1889,6 +1889,57 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
     }
 });
 
+// Create test conversation endpoint
+app.post('/api/conversations/test', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user._id;
+        
+        // Find another user to create conversation with
+        const otherUser = await User.findOne({ 
+            _id: { $ne: userId },
+            fullName: { $exists: true }
+        });
+        
+        if (!otherUser) {
+            return res.status(404).json({
+                success: false,
+                message: 'No other users found to create test conversation'
+            });
+        }
+        
+        // Create a test message
+        const testMessage = new Message({
+            senderId: otherUser._id,
+            receiverId: userId,
+            content: 'Hello! This is a test message.',
+            messageType: 'text',
+            createdAt: new Date()
+        });
+        
+        await testMessage.save();
+        
+        res.json({
+            success: true,
+            message: 'Test conversation created',
+            conversation: {
+                id: otherUser._id,
+                name: otherUser.fullName,
+                lastMessage: {
+                    content: testMessage.content,
+                    timestamp: testMessage.createdAt
+                }
+            }
+        });
+        
+    } catch (error) {
+        logger.error('Test conversation creation error', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+});
+
 app.get('/api/conversations/:partnerId/messages', authenticateToken, async (req, res) => {
     try {
         const { partnerId } = req.params;
