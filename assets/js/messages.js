@@ -820,7 +820,10 @@ class TelegramRealtimeMessaging {
                     currentUserId: this.currentUser.id,
                     isOwn: isOwn,
                     content: message.content,
+                    text: message.text,
+                    actualContent: message.text || message.content,
                     senderName: message.senderName,
+                    availableFields: Object.keys(message),
                     fullMessage: message
                 });
             }
@@ -829,7 +832,7 @@ class TelegramRealtimeMessaging {
                 <div class="message-group flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4 px-2">
                     <div class="max-w-[70%] min-w-0 px-4 py-2 rounded-lg ${isOwn ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-100'}">
                         ${!isOwn ? `<div class="text-xs text-gray-400 mb-1 truncate">${senderName}</div>` : ''}
-                        <div class="text-sm message-content">${this.escapeHtml(message.content || message.text || '')}</div>
+                        <div class="text-sm message-content">${this.escapeHtml(message.text || message.content || '')}</div>
                         <div class="flex items-center justify-end mt-1 space-x-1">
                             <span class="text-xs ${isOwn ? 'text-blue-200' : 'text-gray-400'}">${this.formatTime(message.timestamp)}</span>
                             ${isOwn ? `<span class="text-xs">${statusIcon}</span>` : ''}
