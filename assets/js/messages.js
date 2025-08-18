@@ -735,17 +735,32 @@ class TelegramRealtimeMessaging {
     // Load Messages for Chat
     async loadMessages(chatId) {
         try {
+            console.log('📬 Loading messages for chatId:', chatId);
             const response = await fetch(`/api/conversations/${chatId}/messages`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
 
+            console.log('📡 Messages API response status:', response.status);
+
             if (response.ok) {
-                const messages = await response.json();
+                const data = await response.json();
+                console.log('📬 Raw messages data:', data);
+                
+                // Handle different response formats
+                const messages = Array.isArray(data) ? data : 
+                                (data.messages && Array.isArray(data.messages)) ? data.messages :
+                                (data.data && Array.isArray(data.data)) ? data.data : [];
+                
+                console.log('📬 Parsed messages array:', messages);
+                
                 this.messages.set(chatId, messages);
                 this.renderMessages(messages);
                 this.scrollToBottom();
+            } else {
+                const errorText = await response.text();
+                console.error('❌ Messages API Error:', response.status, errorText);
             }
         } catch (error) {
             console.error('❌ Failed to load messages:', error);
@@ -754,8 +769,18 @@ class TelegramRealtimeMessaging {
 
     // Render Messages
     renderMessages(messages) {
+        console.log('🎨 renderMessages called with:', messages);
         const container = document.getElementById('messages-container');
-        if (!container) return;
+        if (!container) {
+            console.error('❌ messages-container not found');
+            return;
+        }
+
+        // Ensure messages is an array
+        if (!Array.isArray(messages)) {
+            console.warn('⚠️ messages is not an array:', typeof messages, messages);
+            messages = [];
+        }
 
         if (messages.length === 0) {
             container.innerHTML = `
