@@ -795,15 +795,26 @@ class TelegramRealtimeMessaging {
             return;
         }
 
-        container.innerHTML = messages.map(message => {
+        container.innerHTML = messages.map((message, index) => {
             const isOwn = message.senderId === this.currentUser.id;
             const statusIcon = this.getMessageStatusIcon(message.status);
+            
+            // Debug log for first few messages
+            if (index < 3) {
+                console.log(`📝 Message ${index}:`, {
+                    senderId: message.senderId,
+                    currentUserId: this.currentUser.id,
+                    isOwn: isOwn,
+                    content: message.content,
+                    senderName: message.senderName
+                });
+            }
             
             return `
                 <div class="message-group flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4">
                     <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${isOwn ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-100'}">
                         ${!isOwn ? `<div class="text-xs text-gray-400 mb-1">${message.senderName || 'Unknown'}</div>` : ''}
-                        <div class="text-sm whitespace-pre-wrap">${this.escapeHtml(message.content)}</div>
+                        <div class="text-sm whitespace-pre-wrap">${this.escapeHtml(message.content || message.text || '')}</div>
                         <div class="flex items-center justify-end mt-1 space-x-1">
                             <span class="text-xs ${isOwn ? 'text-blue-200' : 'text-gray-400'}">${this.formatTime(message.timestamp)}</span>
                             ${isOwn ? `<span class="text-xs">${statusIcon}</span>` : ''}
@@ -812,6 +823,8 @@ class TelegramRealtimeMessaging {
                 </div>
             `;
         }).join('');
+        
+        console.log('✅ Messages HTML generated, length:', container.innerHTML.length);
     }
 
     // Utility Methods
