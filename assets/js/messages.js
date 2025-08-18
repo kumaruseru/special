@@ -76,6 +76,9 @@ class TelegramRealtimeMessaging {
 
             this.setupSocketEvents();
             
+            // Load conversations immediately (don't wait for socket connection)
+            this.loadConversations();
+            
             console.log('🚀 Telegram-style messaging initialized for:', this.currentUser.username);
             return true;
             
@@ -151,14 +154,20 @@ class TelegramRealtimeMessaging {
 
     // Load Conversations (Telegram-style)
     async loadConversations() {
+        console.log('🔄 loadConversations called');
         try {
+            const token = localStorage.getItem('token');
+            console.log('🔑 Token exists:', !!token);
+            
             const response = await fetch('/api/conversations', {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 }
             });
 
+            console.log('📡 API Response status:', response.status);
+            
             if (response.ok) {
                 const data = await response.json();
                 console.log('📋 API Response:', data);
@@ -168,6 +177,8 @@ class TelegramRealtimeMessaging {
                                     (data.conversations && Array.isArray(data.conversations)) ? data.conversations :
                                     (data.data && Array.isArray(data.data)) ? data.data : [];
                 
+                console.log('💬 Parsed conversations:', conversations);
+                
                 this.conversations.clear();
                 
                 conversations.forEach(conv => {
@@ -176,6 +187,9 @@ class TelegramRealtimeMessaging {
                 
                 this.renderConversations();
                 console.log(`📋 Loaded ${conversations.length} conversations`);
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API Error:', response.status, errorText);
             }
         } catch (error) {
             console.error('❌ Failed to load conversations:', error);
